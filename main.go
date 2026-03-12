@@ -35,6 +35,9 @@ func main() {
 	case "notifications":
 		requireLogin(c)
 		cmdNotifications(c)
+	case "timetable":
+		requireLogin(c)
+		cmdTimetable(c)
 	case "todo":
 		requireLogin(c)
 		kjkey := ""
@@ -54,6 +57,7 @@ func printUsage() {
 commands:
   login
   logout
+  timetable
   notifications
   todo [KJKEY]
   course ls
@@ -63,7 +67,8 @@ commands:
   course <KJKEY> assignment <SEQ>
   course <KJKEY> files
   course <KJKEY> download <FILE_SEQ>
-  course <KJKEY> download`)
+  course <KJKEY> download
+  course <KJKEY> syllabus`)
 }
 
 func cmdCourse(c *eclass.Client, args []string) {
@@ -107,6 +112,8 @@ func cmdCourse(c *eclass.Client, args []string) {
 				fileSeq = args[2]
 			}
 			cmdDownload(c, kjkey, fileSeq)
+		case "syllabus":
+			cmdSyllabus(c, kjkey)
 		default:
 			printUsage()
 			os.Exit(1)
@@ -317,6 +324,62 @@ func cmdNotifications(c *eclass.Client) {
 		fatal(err)
 	}
 	out(items)
+}
+
+func cmdTimetable(c *eclass.Client) {
+	terms, err := c.GetYearTerms()
+	if err != nil {
+		fatal(err)
+	}
+
+	type entry struct {
+		KJKEY string `json:"kjkey"`
+		Name  string `json:"name"`
+		Time  string `json:"time"`
+	}
+
+	var result []entry
+	for _, yt := range terms {
+		courses, err := c.GetCourses(yt[0], yt[1])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "warning: %s/%s 학기 조회 실패: %v\n", yt[0], yt[1], err)
+			continue
+		}
+		for _, course := range courses {
+			t, err := c.GetLectureTime(course.KJKEY)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "warning: %s 시간 조회 실패: %v\n", course.Name, err)
+				continue
+			}
+			result = append(result, entry{
+				KJKEY: course.KJKEY,
+				Name:  course.Name,
+				Time:  t,
+			})
+		}
+	}
+	out(result)
+}
+
+func cmdSyllabus(c *eclass.Client, kjkey string) {
+	if err := c.EnterCourse(kjkey); err != nil {
+		fatal(err)
+	}
+	info, err := c.GetSyllabus(kjkey)
+	if err != nil {
+		fatal(err)
+	}
+
+	if err := c.DownloadSyllabus(info.DownURL, info.FileName); err != nil {
+		fatal(err)
+	}
+
+	out(map[string]any{
+		"professor": info.Professor,
+		"email":     info.Email,
+		"file_name": info.FileName,
+		"ok":        true,
+	})
 }
 
 func cmdTodo(c *eclass.Client, kjkey string) {

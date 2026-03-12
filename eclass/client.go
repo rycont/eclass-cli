@@ -182,6 +182,65 @@ func (c *Client) Logout() {
 	os.Remove(sessionFile())
 }
 
+// needsRelogin checks if a response indicates an expired session.
+// iLOS signals session expiry in two ways:
+// 1. Redirect to a URL containing "login" or "index" in the path
+// 2. Returning an empty body or HTML containing login form markers
+func (c *Client) needsRelogin(resp *http.Response) (bool, *http.Response, error) {
+	if strings.Contains(resp.Request.URL.Path, "/lo/login") ||
+		strings.Contains(resp.Request.URL.Path, "/ilos/index") {
+		resp.Body.Close()
+		return true, nil, nil
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		return false, nil, fmt.Errorf("응답 읽기 실패: %w", err)
+	}
+	bodyStr := strings.TrimSpace(string(body))
+	if bodyStr == "" ||
+		strings.Contains(bodyStr, "login_form") ||
+		strings.Contains(bodyStr, "member/login") ||
+		strings.Contains(bodyStr, "로그인이 필요") {
+		return true, nil, nil
+	}
+
+	resp.Body = io.NopCloser(bytes.NewReader(body))
+	return false, resp, nil
+}
+
+func (c *Client) autoRelogin() error {
+	creds, err := loadCredentials()
+	if err != nil {
+		return fmt.Errorf("세션 만료: 자격증명 없음, 재로그인 필요")
+	}
+	if err := c.Login(creds.ID, creds.Password); err != nil {
+		return fmt.Errorf("자동 재로그인 실패: %w", err)
+	}
+	return nil
+}
+
+func (c *Client) Get(path string) (*http.Response, error) {
+	resp, err := c.HTTP.Get(BaseURL + path)
+	if err != nil {
+		return nil, err
+	}
+
+	needLogin, resp, err := c.needsRelogin(resp)
+	if err != nil {
+		return nil, err
+	}
+	if !needLogin {
+		return resp, nil
+	}
+
+	if err := c.autoRelogin(); err != nil {
+		return nil, err
+	}
+	return c.HTTP.Get(BaseURL + path)
+}
+
 func (c *Client) Post(path string, form url.Values) (*http.Response, error) {
 	form.Set("encoding", "utf-8")
 	resp, err := c.HTTP.PostForm(BaseURL+path, form)
@@ -189,42 +248,16 @@ func (c *Client) Post(path string, form url.Values) (*http.Response, error) {
 		return nil, err
 	}
 
-	needRelogin := false
-
-	// 케이스 1: 세션 만료 시 로그인 페이지로 리다이렉트
-	if strings.Contains(resp.Request.URL.Path, "login") || strings.Contains(resp.Request.URL.Path, "index") {
-		needRelogin = true
+	needLogin, resp, err := c.needsRelogin(resp)
+	if err != nil {
+		return nil, err
+	}
+	if !needLogin {
+		return resp, nil
 	}
 
-	// 케이스 2: 응답 body에 로그인 폼이 있거나 빈 응답
-	if !needRelogin {
-		body, rerr := io.ReadAll(resp.Body)
-		resp.Body.Close()
-		if rerr != nil {
-			return nil, rerr
-		}
-		bodyStr := strings.TrimSpace(string(body))
-		if bodyStr == "" ||
-			strings.Contains(bodyStr, "login_form") ||
-			strings.Contains(bodyStr, "member/login") ||
-			strings.Contains(bodyStr, "로그인이 필요") {
-			needRelogin = true
-		} else {
-			// 정상 응답: body를 다시 읽을 수 있도록 감싸서 반환
-			resp.Body = io.NopCloser(bytes.NewReader(body))
-			return resp, nil
-		}
-	} else {
-		resp.Body.Close()
-	}
-
-	// 자동 재로그인
-	creds, cerr := loadCredentials()
-	if cerr != nil {
-		return nil, fmt.Errorf("세션 만료: 자격증명 없음, 재로그인 필요")
-	}
-	if lerr := c.Login(creds.ID, creds.Password); lerr != nil {
-		return nil, fmt.Errorf("자동 재로그인 실패: %w", lerr)
+	if err := c.autoRelogin(); err != nil {
+		return nil, err
 	}
 	form.Set("encoding", "utf-8")
 	return c.HTTP.PostForm(BaseURL+path, form)

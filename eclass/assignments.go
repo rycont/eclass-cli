@@ -110,7 +110,7 @@ func parseAssignments(html string) []Assignment {
 
 func (c *Client) GetAssignmentDetail(kjkey, seq string) (*AssignmentDetail, error) {
 	// EnterCourse는 이미 호출된 상태
-	resp, err := c.HTTP.Get(BaseURL + "/ilos/cls/st/report/report_view_form.acl?RT_SEQ=" + seq)
+	resp, err := c.Get("/ilos/cls/st/report/report_view_form.acl?RT_SEQ=" + seq)
 	if err != nil {
 		return nil, err
 	}

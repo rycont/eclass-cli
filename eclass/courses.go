@@ -16,13 +16,13 @@ type Course struct {
 }
 
 var (
-	reKJKEY     = regexp.MustCompile(`eclassRoom\('([^']+)'\)`)
+	reKJKEY       = regexp.MustCompile(`eclassRoom\('([^']+)'\)`)
 	reCourseTitle = regexp.MustCompile(`title="([^"]+) 강의실 들어가기"`)
-	reYearInfo  = regexp.MustCompile(`YearInfo\[\d+\] = "(\d+)\^(\d+)"`)
+	reYearInfo    = regexp.MustCompile(`YearInfo\[\d+\] = "(\d+)\^(\d+)"`)
 )
 
 func (c *Client) GetYearTerms() ([][2]string, error) {
-	resp, err := c.HTTP.Get(BaseURL + "/ilos/main/rg/regular_register_list_form.acl")
+	resp, err := c.Get("/ilos/main/rg/regular_register_list_form.acl")
 	if err != nil {
 		return nil, err
 	}
@@ -31,10 +31,6 @@ func (c *Client) GetYearTerms() ([][2]string, error) {
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
-	}
-
-	if strings.Contains(string(body), "login") && !strings.Contains(string(body), "YearInfo") {
-		return nil, fmt.Errorf("로그인이 필요합니다. 'eclass login'을 먼저 실행하세요")
 	}
 
 	matches := reYearInfo.FindAllStringSubmatch(string(body), -1)
