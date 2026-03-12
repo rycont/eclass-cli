@@ -97,6 +97,19 @@ eclass course <KJKEY> download              # 전체 다운로드
 
 파일은 현재 작업 디렉토리에 저장된다.
 
+### 강의계획서 (실라버스) 다운로드
+
+```bash
+eclass course <KJKEY> syllabus
+```
+
+```json
+{"professor":"이영록","email":"yrlee86@sogang.ac.kr","file_name":"2026년도_1학기_응용수학I_강의계획서.pdf","ok":true}
+```
+
+- PDF 파일이 **현재 작업 디렉토리**에 저장된다
+- 교수명, 이메일 정보도 함께 반환
+
 ### 알림 목록 (전체 강좌)
 
 ```bash
