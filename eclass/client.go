@@ -74,6 +74,11 @@ type uaTransport struct{ base http.RoundTripper }
 
 func (t *uaTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	req.Header.Set("User-Agent", userAgent)
+	// Accept-Language를 안 보내면 서버가 매 요청 아무 로케일이나 고른다.
+	// 같은 공지가 "8월 31일"로도 "Mon, August 31"로도 오고, 주차 헤더도
+	// "1 주"와 "Week 1"이 섞인다. 파일 이름이 그 값으로 만들어지므로
+	// 같은 자료가 두 벌 쌓이게 된다. 고정한다.
+	req.Header.Set("Accept-Language", "ko-KR,ko;q=0.9")
 	return t.base.RoundTrip(req)
 }
 

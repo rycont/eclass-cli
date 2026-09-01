@@ -117,45 +117,67 @@ func slug(s string) string {
 	return s
 }
 
-// "1 주 (9월 1일 ~ 9월 7일)" → "01주차". 정렬되게 0을 채운다.
-var reWeekNum = regexp.MustCompile(`(\d+)\s*주`)
+// eclass는 같은 엔드포인트에 한국어와 영어를 오락가락 내려준다. 세션 언어가
+// 고정되지 않아서 "1 주 (9월 1일 ~ 9월 7일)"과 "Week 1 September 1 ~ September 7"이
+// 번갈아 온다. 한쪽만 파싱하면 파일 이름이 요청마다 달라져 같은 자료가 두 번 쌓인다.
+var reWeekNum = regexp.MustCompile(`(?i)(\d+)\s*주|week\s*(\d+)`)
 
 func weekDir(s string) string {
 	if m := reWeekNum.FindStringSubmatch(s); m != nil {
+		num := m[1]
+		if num == "" {
+			num = m[2]
+		}
 		var n int
-		fmt.Sscanf(m[1], "%d", &n)
-		return fmt.Sprintf("%02d주차", n)
+		if _, err := fmt.Sscanf(num, "%d", &n); err == nil {
+			return fmt.Sprintf("%02d주차", n)
+		}
 	}
 	return slug(s)
 }
 
-// "8월 31일 (월) 15:11" → "0831-". 공지는 날짜순으로 보고 싶으니 앞에 붙인다.
-// 한 학기 안에서는 연도가 늘 같아서 파일명에서는 뺀다 (frontmatter에는 넣는다).
+// "8월 31일 (월) 15:11" 또는 "Mon, August 31 15:11" → "0831-"
 var (
-	reMonthDay = regexp.MustCompile(`(\d+)\s*월\s*(\d+)\s*일`)
-	reHourMin  = regexp.MustCompile(`(\d+):(\d+)`)
+	reMonthDayKO = regexp.MustCompile(`(\d+)\s*월\s*(\d+)\s*일`)
+	reMonthDayEN = regexp.MustCompile(`(?i)(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d+)`)
+	reHourMin    = regexp.MustCompile(`(\d+):(\d+)`)
 )
 
+var enMonths = map[string]int{
+	"january": 1, "february": 2, "march": 3, "april": 4, "may": 5, "june": 6,
+	"july": 7, "august": 8, "september": 9, "october": 10, "november": 11, "december": 12,
+}
+
+// monthDay는 한국어·영어 양쪽에서 월/일을 뽑는다. 못 뽑으면 0, 0.
+func monthDay(date string) (int, int) {
+	if m := reMonthDayKO.FindStringSubmatch(date); m != nil {
+		var mo, d int
+		fmt.Sscanf(m[1], "%d", &mo)
+		fmt.Sscanf(m[2], "%d", &d)
+		return mo, d
+	}
+	if m := reMonthDayEN.FindStringSubmatch(date); m != nil {
+		var d int
+		fmt.Sscanf(m[2], "%d", &d)
+		return enMonths[strings.ToLower(m[1])], d
+	}
+	return 0, 0
+}
+
 func datePrefix(date string) string {
-	m := reMonthDay.FindStringSubmatch(date)
-	if m == nil {
+	mo, d := monthDay(date)
+	if mo == 0 {
 		return ""
 	}
-	var mo, d int
-	fmt.Sscanf(m[1], "%d", &mo)
-	fmt.Sscanf(m[2], "%d", &d)
 	return fmt.Sprintf("%02d%02d-", mo, d)
 }
 
 // frontmatter용 ISO 날짜. "8월 31일 (월) 15:11" → "2026-08-31 15:11"
 func isoDate(year, date string) string {
-	m := reMonthDay.FindStringSubmatch(date)
-	if m == nil {
+	mo, d := monthDay(date)
+	if mo == 0 {
 		return date
 	}
-	var mo, d int
-	fmt.Sscanf(m[1], "%d", &mo)
-	fmt.Sscanf(m[2], "%d", &d)
 	out := fmt.Sprintf("%s-%02d-%02d", year, mo, d)
 	if t := reHourMin.FindStringSubmatch(date); t != nil {
 		out += " " + t[0]

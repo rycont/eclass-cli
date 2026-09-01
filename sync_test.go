@@ -34,10 +34,14 @@ func TestSlugTruncates(t *testing.T) {
 }
 
 // 주차는 정렬돼야 한다. "1 주"와 "10 주"가 문자열 순으로 뒤집히면 안 된다.
+// eclass가 같은 값을 영어로도 내려주므로 양쪽 다 같은 이름이 나와야 한다 —
+// 아니면 요청 언어에 따라 같은 자료가 두 디렉터리에 쌓인다.
 func TestWeekDir(t *testing.T) {
 	for _, c := range []struct{ in, want string }{
 		{"1 주 (9월 1일 ~ 9월 7일)", "01주차"},
 		{"10 주 (11월 3일 ~ 11월 9일)", "10주차"},
+		{"Week 1 September 1 ~ September 7", "01주차"},
+		{"Week 10 November 3 ~ November 9", "10주차"},
 		{"보충자료", "보충자료"},
 	} {
 		if got := weekDir(c.in); got != c.want {
@@ -49,7 +53,11 @@ func TestWeekDir(t *testing.T) {
 // 파일명은 한 학기 안에서만 정렬되면 되므로 연도를 뺀다.
 func TestDatePrefix(t *testing.T) {
 	if got := datePrefix("8월 31일 (월) 15:11"); got != "0831-" {
-		t.Errorf("got %q", got)
+		t.Errorf("한국어: got %q", got)
+	}
+	// 서버가 같은 필드를 영어로도 내려준다. 못 잡으면 접두사 없는 파일이 따로 생긴다.
+	if got := datePrefix("Mon, August 31 15:11"); got != "0831-" {
+		t.Errorf("영어: got %q", got)
 	}
 	if got := datePrefix("날짜없음"); got != "" {
 		t.Errorf("파싱 실패 시 빈 문자열이어야 함: %q", got)
@@ -60,6 +68,9 @@ func TestDatePrefix(t *testing.T) {
 func TestISODate(t *testing.T) {
 	if got := isoDate("2026", "8월 31일 (월) 15:11"); got != "2026-08-31 15:11" {
 		t.Errorf("got %q", got)
+	}
+	if got := isoDate("2026", "Mon, August 31 15:11"); got != "2026-08-31 15:11" {
+		t.Errorf("영어: got %q", got)
 	}
 	if got := isoDate("2026", "이상한값"); got != "이상한값" {
 		t.Errorf("파싱 실패 시 원본 유지: %q", got)
