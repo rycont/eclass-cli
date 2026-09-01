@@ -205,13 +205,14 @@ type syncStat struct {
 	Updated    []string `json:"updated"`
 	Skipped    int      `json:"skipped"`
 
-	root  string
-	state map[string]fileState
+	root    string
+	state   map[string]fileState
+	claimed map[string]string // 이번 실행에서 이미 쓴 경로 → file_seq
 }
 
 func newSyncStat(root string) *syncStat {
 	s := &syncStat{Downloaded: []string{}, Updated: []string{},
-		root: root, state: map[string]fileState{}}
+		root: root, state: map[string]fileState{}, claimed: map[string]string{}}
 	if data, err := os.ReadFile(filepath.Join(root, stateName)); err == nil {
 		_ = json.Unmarshal(data, &s.state)
 	}
@@ -231,6 +232,17 @@ func (s *syncStat) fetch(c *eclass.Client, f eclass.AttachedFile, path string) {
 		key = path
 	}
 	want := fileState{Seq: f.FileSeq, Size: f.FileSize}
+
+	// 한 번들에 이름이 같고 내용이 다른 파일이 오면(포스트 둘이 같은 파일명을 쓰면)
+	// 서로 덮어써서 sync마다 다시 받는 churn이 된다. 뒤엣것에 번호를 붙인다.
+	if prev, ok := s.claimed[key]; ok && prev != f.FileSeq {
+		ext := filepath.Ext(path)
+		path = strings.TrimSuffix(path, ext) + "-" + f.FileSeq[:4] + ext
+		if key, err = filepath.Rel(s.root, path); err != nil {
+			key = path
+		}
+	}
+	s.claimed[key] = f.FileSeq
 
 	if _, err := os.Stat(path); err == nil && s.state[key] == want {
 		s.Skipped++
@@ -293,11 +305,11 @@ func cmdSync(c *eclass.Client) {
 	s := newSyncStat(root)
 
 	notices := syncNotices(c, root, rc, s)
-	syncMaterials(c, root, s)
+	weeks := syncMaterials(c, root, rc, s)
 	assignments := syncAssignments(c, root, rc, s)
 
 	s.write(filepath.Join(root, "README.md"),
-		courseReadme(rc, notices, assignments))
+		courseReadme(rc, notices, assignments, weeks))
 
 	s.save()
 	if err := s.commit(); err != nil {
@@ -308,9 +320,9 @@ func cmdSync(c *eclass.Client) {
 		"committed_work": committed})
 }
 
-// 공지는 본문을 md로 남긴다. 첨부에만 내용이 있는 공지가 많아서 첨부도 같이 받는다.
+// 공지는 하나의 글이므로 번들 디렉터리에 content.md 하나와 첨부를 넣는다.
+// 첨부에만 내용이 있는 공지가 많아서 첨부도 같이 받는다.
 func syncNotices(c *eclass.Client, root string, rc *courseRC, s *syncStat) []eclass.Notice {
-	year, course, kjkey := rc.Year, rc.Name, rc.KJKEY
 	notices, err := c.GetNotices(1)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: 공지 조회 실패: %v\n", err)
@@ -322,23 +334,21 @@ func syncNotices(c *eclass.Client, root string, rc *courseRC, s *syncStat) []ecl
 			fmt.Fprintf(os.Stderr, "warning: 공지 %s: %v\n", n.Seq, err)
 			continue
 		}
-		base := datePrefix(n.Date) + slug(n.Title)
+		dir := filepath.Join(root, noticeDir(n))
 
 		fm := "---\n"
+		fm += "type: 공지\n"
 		fm += "title: " + yamlStr(content.Title) + "\n"
 		fm += "author: " + yamlStr(content.Author) + "\n"
-		fm += "date: " + yamlStr(isoDate(year, content.Date)) + "\n"
-		fm += "course: " + yamlStr(course) + "\n"
-		fm += "kjkey: " + yamlStr(kjkey) + "\n"
-		// 조회수는 넣지 않는다. sync가 읽는 행위로 올라가서, 내용이 그대로여도
-		// 매번 파일이 바뀌고 빈 커밋이 쌓인다.
+		fm += "date: " + yamlStr(isoDate(rc.Year, content.Date)) + "\n"
+		fm += "course: " + yamlStr(rc.Name) + "\n"
+		fm += "kjkey: " + yamlStr(rc.KJKEY) + "\n"
 		fm += "seq: " + yamlStr(n.Seq) + "\n"
 		if len(content.Files) > 0 {
 			fm += "files:\n"
 			for _, f := range content.Files {
 				fm += "  - name: " + yamlStr(f.FileName) + "\n"
 				fm += "    size: " + yamlStr(f.FileSize) + "\n"
-				fm += "    path: " + yamlStr(base+"/"+f.FileName) + "\n"
 			}
 		}
 		fm += "---\n\n"
@@ -347,31 +357,91 @@ func syncNotices(c *eclass.Client, root string, rc *courseRC, s *syncStat) []ecl
 		if len(content.Files) > 0 {
 			body += "\n## 첨부\n\n"
 			for _, f := range content.Files {
-				body += fmt.Sprintf("- [%s](%s/%s) (%s)\n", f.FileName, base, f.FileName, f.FileSize)
+				body += fmt.Sprintf("- [%s](%s) (%s)\n", f.FileName, f.FileName, f.FileSize)
 			}
 		}
-		s.write(filepath.Join(root, "공지", base+".md"), body)
+		s.write(filepath.Join(dir, "content.md"), body)
 		for _, f := range content.Files {
-			s.fetch(c, f, filepath.Join(root, "공지", base, f.FileName))
+			s.fetch(c, f, filepath.Join(dir, f.FileName))
 		}
 	}
 	return notices
 }
 
-func syncMaterials(c *eclass.Client, root string, s *syncStat) {
+func noticeDir(n eclass.Notice) string {
+	return datePrefix(n.Date) + "공지-" + slug(n.Title)
+}
+
+// 강의자료는 한 주차에 여러 포스트가 올라올 수 있다. 주차를 번들로 삼고
+// 그 안에 포스트마다 md를 둔다 — 허브 파일 하나로는 여러 포스트를 담을 수 없다.
+func syncMaterials(c *eclass.Client, root string, rc *courseRC, s *syncStat) []string {
 	items, err := c.GetFiles()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: 강의자료 조회 실패: %v\n", err)
-		return
+		return nil
 	}
+
+	// 주차 → 포스트 제목 → 파일들. 순서를 유지해야 md 내용이 요청마다 흔들리지 않는다.
+	type post struct {
+		title string
+		files []eclass.FileItem
+	}
+	weekOrder := []string{}
+	weeks := map[string][]*post{}
 	for _, item := range items {
 		if item.DownURL == "" {
 			continue
 		}
-		s.fetch(c, eclass.AttachedFile{FileName: item.FileName, FileSize: item.FileSize,
-			FileSeq: item.FileSeq, DownURL: item.DownURL},
-			filepath.Join(root, "강의자료", weekDir(item.Week), item.FileName))
+		if _, ok := weeks[item.Week]; !ok {
+			weekOrder = append(weekOrder, item.Week)
+		}
+		list := weeks[item.Week]
+		var p *post
+		for _, q := range list {
+			if q.title == item.Title {
+				p = q
+			}
+		}
+		if p == nil {
+			p = &post{title: item.Title}
+			weeks[item.Week] = append(list, p)
+		}
+		p.files = append(p.files, item)
 	}
+
+	for _, week := range weekOrder {
+		dir := filepath.Join(root, materialDir(week))
+		for _, p := range weeks[week] {
+			fm := "---\ntype: 강의자료\n"
+			fm += "title: " + yamlStr(p.title) + "\n"
+			fm += "week: " + yamlStr(week) + "\n"
+			fm += "course: " + yamlStr(rc.Name) + "\n"
+			fm += "kjkey: " + yamlStr(rc.KJKEY) + "\n"
+			fm += "files:\n"
+			for _, f := range p.files {
+				fm += "  - name: " + yamlStr(f.FileName) + "\n"
+				fm += "    size: " + yamlStr(f.FileSize) + "\n"
+			}
+			fm += "---\n\n"
+
+			body := fm + "# " + p.title + "\n\n"
+			for _, f := range p.files {
+				body += fmt.Sprintf("- [%s](%s) (%s)\n", f.FileName, f.FileName, f.FileSize)
+			}
+			s.write(filepath.Join(dir, slug(p.title)+".md"), body)
+			for _, f := range p.files {
+				s.fetch(c, eclass.AttachedFile{FileName: f.FileName, FileSize: f.FileSize,
+					FileSeq: f.FileSeq, DownURL: f.DownURL}, filepath.Join(dir, f.FileName))
+			}
+		}
+	}
+	return weekOrder
+}
+
+// "1 주 (9월 1일 ~ 9월 7일)" → "0901-자료-01주차".
+// 자료에는 업로드 날짜가 없어서 주차 시작일을 쓴다.
+func materialDir(week string) string {
+	return datePrefix(week) + "자료-" + weekDir(week)
 }
 
 // 과제만 material/로 한 겹 감싼다. 여기가 사용자 작업 공간이라 경계가 필요하다 —
@@ -416,8 +486,20 @@ func syncAssignments(c *eclass.Client, root string, rc *courseRC, s *syncStat) [
 	return items
 }
 
-func courseReadme(rc *courseRC, notices []eclass.Notice, assignments []eclass.Assignment) string {
-	b := fmt.Sprintf("# %s\n\n- %s학년도 %s학기\n- KJKEY: `%s`\n\n", rc.Name, rc.Year, rc.Term, rc.KJKEY)
+// eclass의 term 코드는 학기 이름과 다르다. SAINT의 학기 드롭다운
+// (1학기 / 하계학기 / 2학기 / 동계학기)과 같은 순서다.
+var termNames = map[string]string{"1": "1학기", "2": "하계학기", "3": "2학기", "4": "동계학기"}
+
+func termName(term string) string {
+	if n, ok := termNames[term]; ok {
+		return n
+	}
+	return term + "학기"
+}
+
+func courseReadme(rc *courseRC, notices []eclass.Notice, assignments []eclass.Assignment, weeks []string) string {
+	b := fmt.Sprintf("# %s\n\n- %s학년도 %s\n- KJKEY: `%s`\n\n", rc.Name, rc.Year, termName(rc.Term), rc.KJKEY)
+
 	b += "## 과제\n\n"
 	if len(assignments) == 0 {
 		b += "없음\n"
@@ -426,12 +508,21 @@ func courseReadme(rc *courseRC, notices []eclass.Notice, assignments []eclass.As
 		b += fmt.Sprintf("- [%s](과제/%s/material/README.md) — %s %s\n",
 			a.Title, slug(a.Title), a.Deadline, a.DDay)
 	}
+
 	b += "\n## 공지\n\n"
 	if len(notices) == 0 {
 		b += "없음\n"
 	}
 	for _, n := range notices {
-		b += fmt.Sprintf("- [%s](공지/%s.md) — %s\n", n.Title, datePrefix(n.Date)+slug(n.Title), n.Date)
+		b += fmt.Sprintf("- [%s](%s/content.md) — %s\n", n.Title, noticeDir(n), n.Date)
+	}
+
+	b += "\n## 강의자료\n\n"
+	if len(weeks) == 0 {
+		b += "없음\n"
+	}
+	for _, w := range weeks {
+		b += fmt.Sprintf("- [%s](%s/)\n", w, materialDir(w))
 	}
 	return b
 }
