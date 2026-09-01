@@ -31,6 +31,29 @@ printf "SAINT_ID\nPASSWORD\n" | eclass login
 
 세션은 `~/.eclass-session.json`, credentials는 `~/.eclass-credentials.json`에 저장. 세션 만료 시 자동 재로그인.
 
+## 작업 공간 (init / sync)
+
+강좌 자료를 로컬에 받아 두고 과제 작업까지 같은 자리에서 하려면:
+
+```bash
+mkdir 알설분 && cd 알설분
+eclass init A202631011440101     # cwd를 강좌 작업 공간으로 (git init 포함)
+eclass sync                      # 공지·강의자료·과제 내려받기
+```
+
+```
+공지/0831-교수_공지_본_과목_수강_관련_전체_공지.md   frontmatter(title/author/date/seq/files) + 본문
+강의자료/01주차/…
+과제/Homework_HW0_공지/material/README.md          frontmatter(deadline/score/…) + 본문
+과제/Homework_HW0_공지/                            ← 사용자 작업 공간
+```
+
+- **`sync`는 `.eclassrc`가 있는 곳에서만 동작한다.** 없으면 `eclass init`부터
+- `material/` 밖과 사용자가 만든 파일은 sync가 절대 건드리지 않는다
+- 자동 커밋된다. sync 전에 더러우면 `wip:` 커밋으로 먼저 저장하고,
+  sync 결과는 별도 커밋. 무엇이 바뀌었는지는 `git log` / `git diff`로 본다
+- 이미 받은 파일은 건너뛴다. 같은 이름으로 새 버전이 올라오면 다시 받는다
+
 ## 커맨드 레퍼런스
 
 ### 강좌 목록

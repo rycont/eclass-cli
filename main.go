@@ -28,6 +28,16 @@ func main() {
 	switch os.Args[1] {
 	case "login":
 		cmdLogin(c)
+	case "init":
+		requireLogin(c)
+		if len(os.Args) < 3 {
+			printUsage()
+			os.Exit(1)
+		}
+		cmdInit(c, os.Args[2])
+	case "sync":
+		requireLogin(c)
+		cmdSync(c)
 	case "logout":
 		c.Logout()
 		out(map[string]any{"ok": true})
@@ -60,6 +70,8 @@ func printUsage() {
 commands:
   login
   logout
+  init <KJKEY>          현재 디렉터리를 강좌 작업 공간으로
+  sync                  강좌 자료를 내려받아 동기화
   timetable
   notifications
   todo [KJKEY]

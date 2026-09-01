@@ -27,11 +27,8 @@ type AssignmentDetail struct {
 	Files      []AssignmentFile `json:"files,omitempty"`
 }
 
-type AssignmentFile struct {
-	FileName string `json:"file_name"`
-	FileSize string `json:"file_size"`
-	FileSeq  string `json:"file_seq"`
-}
+// 과제 첨부와 공지 첨부는 같은 efile_list.acl 응답이라 같은 파서를 쓴다.
+type AssignmentFile = AttachedFile
 
 func (c *Client) GetAssignments() ([]Assignment, error) {
 	resp, err := c.Post("/ilos/cls/st/activity/activity_list.acl", url.Values{
@@ -178,36 +175,5 @@ func (c *Client) getAssignmentFiles(kjkey, contentSeq string) ([]AssignmentFile,
 	if err != nil {
 		return nil, err
 	}
-
-	html := string(body)
-	reName := regexp.MustCompile(`class="[^"]*file_down[^"]*"[^>]*>([^<]+)<`)
-	reSize := regexp.MustCompile(`(?s)class="[^"]*file_size[^"]*"[^>]*>(.*?)</span>`)
-	reSeq := regexp.MustCompile(`FILE_SEQ=([^&"]+)`)
-
-	names := reName.FindAllStringSubmatch(html, -1)
-	sizes := reSize.FindAllStringSubmatch(html, -1)
-	seqs := reSeq.FindAllStringSubmatch(html, -1)
-
-	// FILE_SEQ는 중복 (다운로드 링크가 2개씩), 유니크하게
-	seenSeqs := map[string]bool{}
-	var uniqueSeqs []string
-	for _, s := range seqs {
-		if !seenSeqs[s[1]] {
-			seenSeqs[s[1]] = true
-			uniqueSeqs = append(uniqueSeqs, s[1])
-		}
-	}
-
-	var result []AssignmentFile
-	for i, seq := range uniqueSeqs {
-		f := AssignmentFile{FileSeq: seq}
-		if i < len(names) {
-			f.FileName = cleanHTML(names[i][1])
-		}
-		if i < len(sizes) {
-			f.FileSize = cleanHTML(sizes[i][1])
-		}
-		result = append(result, f)
-	}
-	return result, nil
+	return parseAttachments(string(body)), nil
 }

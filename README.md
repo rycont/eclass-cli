@@ -15,6 +15,8 @@
 | Command | Description |
 |---------|-------------|
 | `eclass login` | SAINT 로그인 |
+| `eclass init <KJKEY>` | 현재 디렉터리를 강좌 작업 공간으로 |
+| `eclass sync` | 공지·강의자료·과제를 내려받아 동기화 |
 | `eclass course ls` | 수강 강좌 목록 |
 | `eclass course <KJKEY> notices` | 공지사항 목록 |
 | `eclass course <KJKEY> notice <SEQ>` | 공지사항 본문 + 첨부 |
@@ -64,6 +66,39 @@ $ eclass saint open "장학금 수혜내역"
 $ eclass saint open 장학금
 {"error":"메뉴 '장학금'가 여러 개: 분할납부신청(장학금수혜자) / 장학금 수혜내역 / 장학금 신청"}
 ```
+
+## Workspace
+
+```bash
+mkdir 알설분 && cd 알설분
+eclass init A202631011440101
+eclass sync
+```
+
+```
+.eclassrc                        어느 강좌인지 (git의 .git 역할)
+README.md                        강좌 정보 + 공지·과제 목록
+공지/0831-교수_공지_본_과목_수강_관련_전체_공지.md      frontmatter + 본문
+공지/0831-교수_공지_본_과목_수강_관련_전체_공지/…pdf    첨부
+강의자료/01주차/25_2_CSE3081_Lecture_Note_1.pdf
+과제/Homework_HW0_공지/
+  material/                      ← sync 소유. 본문 README.md + 첨부
+  main.c                         ← 내 작업. sync가 절대 건드리지 않음
+```
+
+설계상 지키는 것:
+
+- **`.eclassrc`가 있는 곳에서만 동작한다.** 위로 올라가며 찾고, 없으면 거부 — 아무 데나
+  디렉터리를 만들지 않기 위해
+- **과제 디렉터리만 `material/`로 한 겹 감싼다.** 거기가 사용자 작업 공간이라 경계가 필요하다.
+  강좌 루트에는 사용자 작업이 없으니 감싸지 않는다
+- **원격에서 지워진 파일은 지우지 않는다**
+- 파일 갱신은 `file_seq`와 크기로 판단한다 (`.eclass-sync.json`). 디렉터리 구조가
+  소유권은 알려 주지만 버전은 알려 주지 않기 때문
+- 히스토리는 git에 맡긴다. 파일을 버전별로 쌓는 대신 `git diff`로 무엇이 바뀌었는지 본다.
+  `sync`는 **자기가 쓴 경로만** 스테이징한다 — 같은 저장소에 사용자 코드가 있으므로
+  `git add -A`를 하면 남의 작업을 제 커밋에 쓸어담게 된다
+- sync 전에 작업 공간이 더러우면 `wip:` 커밋으로 먼저 저장한다. 머지·리베이스 중이면 건드리지 않는다
 
 ## How it works
 
