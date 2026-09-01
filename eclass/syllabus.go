@@ -111,7 +111,11 @@ func (c *Client) GetSyllabus(kjkey string) (*SyllabusInfo, error) {
 	}
 
 	if info.FileName == "" {
-		return nil, fmt.Errorf("강의계획서를 찾을 수 없습니다")
+		// 서버가 "조회할 자료가 없습니다"라고 답하는 경우와 파싱이 깨진 경우를 구분한다.
+		if strings.Contains(html, "자료가 없습니다") {
+			return nil, fmt.Errorf("강의계획서가 아직 등록되지 않았습니다 (교수가 eclass에 올리지 않음)")
+		}
+		return nil, fmt.Errorf("강의계획서 링크를 찾지 못했습니다 (페이지 구조 변경?)")
 	}
 
 	return info, nil
