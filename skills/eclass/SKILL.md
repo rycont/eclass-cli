@@ -1,12 +1,15 @@
 ---
 name: eclass
-description: 서강대학교 사이버캠퍼스(eclass.sogang.ac.kr) + SAINT(saint.sogang.ac.kr) CLI. 수강 강좌 목록, 공지사항, 강의자료 다운로드, 과제 확인, 알림 조회, 성적 조회. "eclass", "saint", "강의자료", "공지사항", "과제", "성적", "학점", "평점", "자료구조 수업" 등의 요청에 트리거.
+description: 서강대학교 사이버캠퍼스(eclass.sogang.ac.kr) + SAINT(saint.sogang.ac.kr) CLI. 수강 강좌 목록, 공지사항, 강의자료 다운로드, 과제 확인, 알림 조회, 성적·장학금·시간표 조회, 강좌 작업 공간(init/sync). "eclass", "saint", "강의자료", "공지사항", "과제", "성적", "학점", "평점", "장학금", "시간표", "수강신청 조회", "자료구조 수업" 등의 요청에 트리거.
 allowed-tools: Bash(eclass:*), Bash(~/go/bin/eclass:*)
 ---
 
 # eclass CLI
 
 서강대학교 사이버캠퍼스 CLI. 모든 출력은 JSON (stdout), 에러는 `{"error": "..."}` (stderr).
+
+커맨드 이름이 헷갈리면 `eclass --help`, 상세는 `eclass help <커맨드>`.
+**읽기 전용이다** — 과제 제출·수강신청·공지 작성은 하지 않는다.
 
 ## 설치
 
@@ -309,6 +312,11 @@ SAINT 화면은 두 종류이고 응답의 `kind`로 갈린다.
 eclass course ls
 eclass course A202611011430202 files
 eclass course A202611011430202 download 6YH4AQQZJVIZO
+
+# 작업 공간 (자료 받아두고 과제하기)
+mkdir 알설분 && cd 알설분
+eclass init A202631011440101
+eclass sync
 
 # 공지 확인
 eclass course A202611011430202 notices

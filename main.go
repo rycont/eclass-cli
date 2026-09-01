@@ -16,8 +16,18 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		printUsage()
+		printUsage(os.Stderr)
 		os.Exit(1)
+	}
+
+	switch os.Args[1] {
+	case "help", "--help", "-h":
+		topic := ""
+		if len(os.Args) >= 3 {
+			topic = strings.Join(os.Args[2:], " ")
+		}
+		cmdHelp(topic)
+		return
 	}
 
 	c, err := eclass.NewClient()
@@ -31,8 +41,7 @@ func main() {
 	case "init":
 		requireLogin(c)
 		if len(os.Args) < 3 {
-			printUsage()
-			os.Exit(1)
+			usageError("init", "KJKEY가 필요합니다 (`eclass course ls`로 확인)")
 		}
 		cmdInit(c, os.Args[2])
 	case "sync":
@@ -59,33 +68,10 @@ func main() {
 		}
 		cmdTodo(c, kjkey)
 	default:
-		printUsage()
+		fmt.Fprintf(os.Stderr, "그런 커맨드가 없습니다: %s\n\n", os.Args[1])
+		printUsage(os.Stderr)
 		os.Exit(1)
 	}
-}
-
-func printUsage() {
-	fmt.Fprintln(os.Stderr, `usage: eclass <command>
-
-commands:
-  login
-  logout
-  init <KJKEY>          현재 디렉터리를 강좌 작업 공간으로
-  sync                  강좌 자료를 내려받아 동기화
-  timetable
-  notifications
-  todo [KJKEY]
-  course ls
-  course <KJKEY> notices
-  course <KJKEY> notice <ARTL_NUM>
-  course <KJKEY> assignments
-  course <KJKEY> assignment <SEQ>
-  course <KJKEY> files
-  course <KJKEY> download <FILE_SEQ>
-  course <KJKEY> download
-  course <KJKEY> syllabus
-  saint menu
-  saint open <화면이름> [입력칸=값 | 동작이름 ...]`)
 }
 
 // SAINT는 eclass와 같은 계정을 쓰므로 `eclass login`으로 저장된 credentials를 그대로 재활용한다.
@@ -106,8 +92,7 @@ func saintLogin() *saint.Client {
 
 func cmdSaint(args []string) {
 	if len(args) == 0 {
-		printUsage()
-		os.Exit(1)
+		usageError("saint", "menu 또는 open이 필요합니다")
 	}
 	c := saintLogin()
 
@@ -120,13 +105,11 @@ func cmdSaint(args []string) {
 		out(menus)
 	case "open":
 		if len(args) < 2 {
-			printUsage()
-			os.Exit(1)
+			usageError("saint open", "화면 이름이 필요합니다 (`eclass saint menu`로 확인)")
 		}
 		cmdSaintOpen(c, args[1], args[2:])
 	default:
-		printUsage()
-		os.Exit(1)
+		usageError("saint", "알 수 없는 항목: "+args[0])
 	}
 }
 
@@ -217,8 +200,7 @@ func cmdSaintOpen(c *saint.Client, target string, actions []string) {
 func cmdCourse(c *eclass.Client, args []string) {
 	requireLogin(c)
 	if len(args) == 0 {
-		printUsage()
-		os.Exit(1)
+		usageError("course", "KJKEY 또는 `ls`가 필요합니다")
 	}
 
 	switch args[0] {
@@ -226,8 +208,7 @@ func cmdCourse(c *eclass.Client, args []string) {
 		cmdCourseList(c)
 	default:
 		if len(args) < 2 {
-			printUsage()
-			os.Exit(1)
+			usageError("course", "무엇을 볼지 지정해야 합니다 (notices, files, assignments …)")
 		}
 		kjkey := args[0]
 		switch args[1] {
@@ -235,16 +216,14 @@ func cmdCourse(c *eclass.Client, args []string) {
 			cmdNotices(c, kjkey)
 		case "notice":
 			if len(args) < 3 {
-				printUsage()
-				os.Exit(1)
+				usageError("course <KJKEY> notice", "공지 SEQ가 필요합니다 (`course <KJKEY> notices`로 확인)")
 			}
 			cmdNoticeView(c, kjkey, args[2])
 		case "assignments":
 			cmdAssignments(c, kjkey)
 		case "assignment":
 			if len(args) < 3 {
-				printUsage()
-				os.Exit(1)
+				usageError("course <KJKEY> assignment", "과제 SEQ가 필요합니다 (`course <KJKEY> assignments`로 확인)")
 			}
 			cmdAssignmentView(c, kjkey, args[2])
 		case "files":
@@ -258,8 +237,7 @@ func cmdCourse(c *eclass.Client, args []string) {
 		case "syllabus":
 			cmdSyllabus(c, kjkey)
 		default:
-			printUsage()
-			os.Exit(1)
+			usageError("course", "알 수 없는 항목: "+args[1])
 		}
 	}
 }
