@@ -48,7 +48,7 @@ eclass sync                      # 공지·강의자료·과제 내려받기
 ```
 
 ```
-0831-공지-교수_공지_….../content.md      frontmatter(type/title/author/date/seq/files) + 본문
+0831-공지-교수_공지_….../content.md      frontmatter(type/title/author/date/seq) + 본문
 0831-공지-교수_공지_….../260901_….pdf    첨부
 0901-자료-01주차/OT_자료.md              포스트마다 하나 (한 주차에 여럿일 수 있음)
 0901-자료-01주차/2026-2컴실2OT.pptx
@@ -60,6 +60,8 @@ README.md                                 과제·공지·강의자료 전체 �
 - 공지와 강의자료는 날짜 번들이라 `ls`가 시간순이다. 무엇이 올라왔는지 훑을 때
   `README.md`를 먼저 보고, 본문은 `cat */content.md`나 `grep -r`로 찾는다
 - 과제만 이 흐름 밖에 둔다 — 사용자 파일이 들어가고, 마감일로 보는 것이라
+- 첨부 목록은 frontmatter에 없다. 파일이 같은 디렉터리에 실제로 놓이므로
+  `ls`가 곧 목록이고, md 본문의 링크가 읽을 때 쓰는 형태다
 
 - **`sync`는 `.eclassrc`가 있는 곳에서만 동작한다.** 없으면 `eclass init`부터
 - `material/` 밖과 사용자가 만든 파일은 sync가 절대 건드리지 않는다

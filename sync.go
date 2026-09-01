@@ -344,13 +344,8 @@ func syncNotices(c *eclass.Client, root string, rc *courseRC, s *syncStat) []ecl
 		fm += "course: " + yamlStr(rc.Name) + "\n"
 		fm += "kjkey: " + yamlStr(rc.KJKEY) + "\n"
 		fm += "seq: " + yamlStr(n.Seq) + "\n"
-		if len(content.Files) > 0 {
-			fm += "files:\n"
-			for _, f := range content.Files {
-				fm += "  - name: " + yamlStr(f.FileName) + "\n"
-				fm += "    size: " + yamlStr(f.FileSize) + "\n"
-			}
-		}
+		// 첨부는 frontmatter에 적지 않는다. 같은 디렉터리에 실제로 놓이므로
+		// 목록은 ls가 이미 주고, 본문의 링크가 읽을 때 쓰는 형태다.
 		fm += "---\n\n"
 
 		body := fm + "# " + content.Title + "\n\n" + content.Body + "\n"
@@ -417,11 +412,6 @@ func syncMaterials(c *eclass.Client, root string, rc *courseRC, s *syncStat) []s
 			fm += "week: " + yamlStr(week) + "\n"
 			fm += "course: " + yamlStr(rc.Name) + "\n"
 			fm += "kjkey: " + yamlStr(rc.KJKEY) + "\n"
-			fm += "files:\n"
-			for _, f := range p.files {
-				fm += "  - name: " + yamlStr(f.FileName) + "\n"
-				fm += "    size: " + yamlStr(f.FileSize) + "\n"
-			}
 			fm += "---\n\n"
 
 			body := fm + "# " + p.title + "\n\n"
@@ -469,15 +459,14 @@ func syncAssignments(c *eclass.Client, root string, rc *courseRC, s *syncStat) [
 		fm += "course: " + yamlStr(rc.Name) + "\n"
 		fm += "kjkey: " + yamlStr(rc.KJKEY) + "\n"
 		fm += "seq: " + yamlStr(a.Seq) + "\n"
-		if len(detail.Files) > 0 {
-			fm += "files:\n"
-			for _, f := range detail.Files {
-				fm += "  - name: " + yamlStr(f.FileName) + "\n"
-				fm += "    size: " + yamlStr(f.FileSize) + "\n"
-			}
-		}
 		fm += "---\n\n"
 		body := fm + "# " + detail.Title + "\n\n" + detail.Body + "\n"
+		if len(detail.Files) > 0 {
+			body += "\n## 첨부\n\n"
+			for _, f := range detail.Files {
+				body += fmt.Sprintf("- [%s](%s) (%s)\n", f.FileName, f.FileName, f.FileSize)
+			}
+		}
 		s.write(filepath.Join(dir, "README.md"), body)
 		for _, f := range detail.Files {
 			s.fetch(c, f, filepath.Join(dir, f.FileName))
