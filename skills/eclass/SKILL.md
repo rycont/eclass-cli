@@ -1,7 +1,7 @@
 ---
 name: eclass
 description: 서강대학교 사이버캠퍼스(eclass.sogang.ac.kr) + SAINT(saint.sogang.ac.kr) CLI. 수강 강좌 목록, 공지사항, 강의자료 다운로드, 과제 확인, 알림 조회, 성적·장학금·시간표 조회, 강좌 작업 공간(init/sync). "eclass", "saint", "강의자료", "공지사항", "과제", "성적", "학점", "평점", "장학금", "시간표", "수강신청 조회", "자료구조 수업" 등의 요청에 트리거.
-allowed-tools: Bash(eclass:*), Bash(~/go/bin/eclass:*)
+allowed-tools: Bash(eclass:*), Bash(eclass-cli:*), Bash(~/go/bin/eclass:*), Bash(~/go/bin/eclass-cli:*)
 ---
 
 # eclass CLI
@@ -34,6 +34,9 @@ printf "SAINT_ID\nPASSWORD\n" | eclass login
 
 세션은 `~/.eclass-session.json`, credentials는 `~/.eclass-credentials.json`에 저장. 세션 만료 시 자동 재로그인.
 
+**`course ls`는 수강 강좌만 준다.** 조교로 담당하는 강좌는 나오지 않으므로,
+목록에 없다고 "그런 과목 없다"고 답하면 안 된다.
+
 ## 작업 공간 (init / sync)
 
 강좌 자료를 로컬에 받아 두고 과제 작업까지 같은 자리에서 하려면:
@@ -56,6 +59,11 @@ eclass sync                      # 공지·강의자료·과제 내려받기
 - 자동 커밋된다. sync 전에 더러우면 `wip:` 커밋으로 먼저 저장하고,
   sync 결과는 별도 커밋. 무엇이 바뀌었는지는 `git log` / `git diff`로 본다
 - 이미 받은 파일은 건너뛴다. 같은 이름으로 새 버전이 올라오면 다시 받는다
+
+**언제 쓰나**: 사용자가 그 강좌로 계속 작업할 때(과제 하기, 자료 훑기)는
+`init`+`sync` 한 번이 낱개 커맨드를 여러 번 부르는 것보다 빠르고, 결과가
+파일로 남아 다음에 다시 받지 않아도 된다. 한 번만 확인하면 되는 질문
+("공지 뭐 올라왔어?")에는 낱개 커맨드가 맞다.
 
 ## 커맨드 레퍼런스
 
@@ -123,10 +131,12 @@ eclass course <KJKEY> files
 
 ```bash
 eclass course <KJKEY> download <FILE_SEQ>   # 특정 파일
-eclass course <KJKEY> download              # 전체 다운로드
+eclass course <KJKEY> download              # 강의자료 전체
 ```
 
-파일은 현재 작업 디렉토리에 저장된다.
+- 파일은 현재 작업 디렉토리에 원래 이름으로 저장된다
+- **강의자료와 공지 첨부를 모두 같은 커맨드로 받는다.** `FILE_SEQ`가 어느 쪽
+  목록에 있든 알아서 찾는다 — `notice`가 알려 준 `file_seq`를 그대로 넘기면 된다
 
 ### 강의계획서 (실라버스) 다운로드
 
@@ -140,6 +150,9 @@ eclass course <KJKEY> syllabus
 
 - PDF 파일이 **현재 작업 디렉토리**에 저장된다
 - 교수명, 이메일 정보도 함께 반환
+- `강의계획서가 아직 등록되지 않았습니다`는 파서 문제가 아니라 실제 미등록이다.
+  교수가 SAINT에는 올리고 eclass에는 안 옮긴 경우가 많으니, 그때는
+  `eclass saint open 개설교과목`에서 찾는다
 
 ### 알림 목록 (전체 강좌)
 
