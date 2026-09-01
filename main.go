@@ -66,7 +66,6 @@ commands:
   course ls
   course <KJKEY> notices
   course <KJKEY> notice <ARTL_NUM>
-  course <KJKEY> notice <ARTL_NUM> download [FILE_SEQ]
   course <KJKEY> assignments
   course <KJKEY> assignment <SEQ>
   course <KJKEY> files
@@ -227,14 +226,6 @@ func cmdCourse(c *eclass.Client, args []string) {
 				printUsage()
 				os.Exit(1)
 			}
-			if len(args) >= 4 && args[3] == "download" {
-				fileSeq := ""
-				if len(args) >= 5 {
-					fileSeq = args[4]
-				}
-				cmdNoticeDownload(c, kjkey, args[2], fileSeq)
-				return
-			}
 			cmdNoticeView(c, kjkey, args[2])
 		case "assignments":
 			cmdAssignments(c, kjkey)
@@ -320,34 +311,6 @@ func cmdNotices(c *eclass.Client, kjkey string) {
 	out(result)
 }
 
-// 공지 첨부는 본문 대신 내용을 담고 있는 경우가 많아서 바로 받을 수 있어야 한다.
-func cmdNoticeDownload(c *eclass.Client, kjkey, seq, fileSeq string) {
-	if err := c.EnterCourse(kjkey); err != nil {
-		fatal(err)
-	}
-	n, err := c.GetNoticeContent(seq)
-	if err != nil {
-		fatal(err)
-	}
-
-	var results []map[string]any
-	for _, f := range n.Files {
-		if fileSeq != "" && f.FileSeq != fileSeq {
-			continue
-		}
-		err := downloadURL(c, f.DownURL, f.FileName)
-		r := map[string]any{"file_name": f.FileName, "file_seq": f.FileSeq, "ok": err == nil}
-		if err != nil {
-			r["error"] = err.Error()
-		}
-		results = append(results, r)
-	}
-	if results == nil {
-		fatal(fmt.Errorf("첨부파일 없음 (file_seq %q)", fileSeq))
-	}
-	out(results)
-}
-
 func cmdNoticeView(c *eclass.Client, kjkey, seq string) {
 	if err := c.EnterCourse(kjkey); err != nil {
 		fatal(err)
@@ -398,35 +361,54 @@ func cmdFiles(c *eclass.Client, kjkey string) {
 	out(result)
 }
 
+// FILE_SEQ 하나로 강의자료든 공지 첨부든 받는다. 둘은 목록이 다르지만
+// 사용자에게는 똑같이 생긴 값이라, 어디 있는지 알아내는 건 CLI 몫이다.
 func cmdDownload(c *eclass.Client, kjkey, fileSeq string) {
 	if err := c.EnterCourse(kjkey); err != nil {
 		fatal(err)
 	}
+
+	type target struct{ name, seq, url string }
+	var toDownload []target
+
 	items, err := c.GetFiles()
 	if err != nil {
 		fatal(err)
 	}
-
-	var fileItems []eclass.FileItem
 	for _, item := range items {
-		if item.DownURL != "" {
-			fileItems = append(fileItems, item)
+		if item.DownURL == "" {
+			continue
+		}
+		if fileSeq == "" || item.FileSeq == fileSeq {
+			toDownload = append(toDownload, target{item.FileName, item.FileSeq, item.DownURL})
 		}
 	}
 
-	var toDownload []eclass.FileItem
-	if fileSeq == "" {
-		toDownload = fileItems
-	} else {
-		for _, item := range fileItems {
-			if item.FileSeq == fileSeq {
-				toDownload = []eclass.FileItem{item}
+	// 강의자료에 없으면 공지 첨부를 뒤진다. 공지마다 본문을 따로 받아야 해서
+	// 요청이 여러 번 나가므로, 못 찾았을 때만 한다.
+	if fileSeq != "" && len(toDownload) == 0 {
+		notices, err := c.GetNotices(1)
+		if err != nil {
+			fatal(err)
+		}
+		for _, n := range notices {
+			content, err := c.GetNoticeContent(n.Seq)
+			if err != nil {
+				continue
+			}
+			for _, f := range content.Files {
+				if f.FileSeq == fileSeq {
+					toDownload = append(toDownload, target{f.FileName, f.FileSeq, f.DownURL})
+				}
+			}
+			if len(toDownload) > 0 {
 				break
 			}
 		}
-		if len(toDownload) == 0 {
-			fatal(fmt.Errorf("file_seq '%s' not found", fileSeq))
-		}
+	}
+
+	if len(toDownload) == 0 {
+		fatal(fmt.Errorf("file_seq '%s' 없음 (강의자료·공지 첨부 모두 확인함)", fileSeq))
 	}
 
 	type result struct {
@@ -435,11 +417,10 @@ func cmdDownload(c *eclass.Client, kjkey, fileSeq string) {
 		Ok       bool   `json:"ok"`
 		Error    string `json:"error,omitempty"`
 	}
-
 	var results []result
-	for _, item := range toDownload {
-		err := downloadFile(c, item)
-		r := result{FileName: item.FileName, FileSeq: item.FileSeq, Ok: err == nil}
+	for _, t := range toDownload {
+		err := downloadURL(c, t.url, t.name)
+		r := result{FileName: t.name, FileSeq: t.seq, Ok: err == nil}
 		if err != nil {
 			r.Error = err.Error()
 		}

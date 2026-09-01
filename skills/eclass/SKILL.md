@@ -65,7 +65,6 @@ eclass course <KJKEY> notices
 
 ```bash
 eclass course <KJKEY> notice <SEQ>
-eclass course <KJKEY> notice <SEQ> download [FILE_SEQ]   # 첨부 받기
 ```
 
 ```json
@@ -80,7 +79,7 @@ eclass course <KJKEY> notice <SEQ> download [FILE_SEQ]   # 첨부 받기
 
 - **`body`가 비어 있어도 빈 글이 아니다.** 본문 없이 첨부에만 내용을 담는 공지가 흔하다.
   `files`를 반드시 같이 확인하고, 내용이 필요하면 받아서 읽는다
-- 첨부는 실행 위치에 원래 파일명으로 저장된다. `FILE_SEQ`를 생략하면 그 공지의 첨부 전부
+- 받으려면 `eclass course <KJKEY> download <FILE_SEQ>`. 강의자료와 같은 커맨드다
 
 ### 파일모음 (강의자료)
 

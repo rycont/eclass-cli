@@ -18,9 +18,8 @@
 | `eclass course ls` | 수강 강좌 목록 |
 | `eclass course <KJKEY> notices` | 공지사항 목록 |
 | `eclass course <KJKEY> notice <SEQ>` | 공지사항 본문 + 첨부 |
-| `eclass course <KJKEY> notice <SEQ> download [FILE_SEQ]` | 공지 첨부 다운로드 |
 | `eclass course <KJKEY> files` | 강의자료 목록 |
-| `eclass course <KJKEY> download <FILE_SEQ>` | 파일 다운로드 |
+| `eclass course <KJKEY> download <FILE_SEQ>` | 파일 다운로드 (강의자료·공지 첨부 공통) |
 | `eclass course <KJKEY> assignments` | 과제 목록 |
 | `eclass course <KJKEY> assignment <SEQ>` | 과제 상세 (본문 + 첨부파일) |
 | `eclass notifications` | 전체 알림 |
