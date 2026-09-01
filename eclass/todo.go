@@ -42,18 +42,18 @@ func parseTodo(html string) []TodoItem {
 	reBlock := regexp.MustCompile(`(?s)<a class="todo_wrap on"[^>]+goLecture\('([^']+)','([^']+)','([^']+)'\)[^>]+data-id="([^"]*)"[^>]*>(.*?)</a>`)
 	blocks := reBlock.FindAllStringSubmatch(html, -1)
 
-	reType  := regexp.MustCompile(`\[([^\]]+)\]`)
+	reType := regexp.MustCompile(`\[([^\]]+)\]`)
 	reTitle := regexp.MustCompile(`(?s)class="todo_title[^"]*"[^>]*>.*?(?:\[[^\]]+\])?\s*(.*?)\s*</div>`)
 	reCourse := regexp.MustCompile(`(?s)class="todo_subjt[^"]*"[^>]*>(.*?)</div>`)
-	reDDay  := regexp.MustCompile(`(?s)class="todo_d_day[^"]*"[^>]*>(.*?)</span>`)
+	reDDay := regexp.MustCompile(`(?s)class="todo_d_day[^"]*"[^>]*>(.*?)</span>`)
 	reDeadline := regexp.MustCompile(`(?s)class="todo_date"[^>]*>\s*(.*?)\s*</span>`)
 
 	var result []TodoItem
 	for _, b := range blocks {
-		kjkey    := b[1]
+		kjkey := b[1]
 		category := b[2]
-		itemID   := b[3]
-		content  := b[5]
+		itemID := b[3]
+		content := b[5]
 
 		itemType := ""
 		if m := reType.FindStringSubmatch(content); m != nil {

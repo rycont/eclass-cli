@@ -37,19 +37,19 @@ func (c *Client) GetNotifications(start int) ([]Notification, error) {
 }
 
 func parseNotifications(html string) []Notification {
-	reBlock  := regexp.MustCompile(`(?s)<a class="notification_content([^"]*)"[^>]*goSubjectPage\('([^']+)','([^']+)','[^']*'\)[^>]*>(.*?)</a>`)
-	reType   := regexp.MustCompile(`<span class="font_subtitle4">\[([^\]]+)\]</span>`)
-	reText   := regexp.MustCompile(`(?s)class="notification_text[^"]*"[^>]*>.*?</span>\s*(.*?)\s*</div>`)
+	reBlock := regexp.MustCompile(`(?s)<a class="notification_content([^"]*)"[^>]*goSubjectPage\('([^']+)','([^']+)','[^']*'\)[^>]*>(.*?)</a>`)
+	reType := regexp.MustCompile(`<span class="font_subtitle4">\[([^\]]+)\]</span>`)
+	reText := regexp.MustCompile(`(?s)class="notification_text[^"]*"[^>]*>.*?</span>\s*(.*?)\s*</div>`)
 	reCourse := regexp.MustCompile(`(?s)class="notification_subject[^"]*"[^>]*>(.*?)</div>`)
-	reDate   := regexp.MustCompile(`(?s)class="notification_day[^"]*"[^>]*>.*?<span>(.*?)</span>`)
+	reDate := regexp.MustCompile(`(?s)class="notification_day[^"]*"[^>]*>.*?<span>(.*?)</span>`)
 
 	blocks := reBlock.FindAllStringSubmatch(html, -1)
 	var result []Notification
 	for _, b := range blocks {
 		classAttr := b[1]
-		kjkey     := b[2]
-		seq       := b[3]
-		content   := b[4]
+		kjkey := b[2]
+		seq := b[3]
+		content := b[4]
 
 		isRead := regexp.MustCompile(`\bread\b`).MatchString(classAttr)
 

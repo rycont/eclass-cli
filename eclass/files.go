@@ -92,9 +92,9 @@ func parseFiles(html string) []FileItem {
 
 	// 제목별로 그룹핑 (각 제목 다음에 파일들이 나옴)
 	type group struct {
-		week   string
-		period string
-		title  string
+		week     string
+		period   string
+		title    string
 		titlePos int
 	}
 	var groups []group
