@@ -1,0 +1,18 @@
+{
+  "name": "eclass-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "./build.sh",
+    "dev": "./build.sh && wrangler dev",
+    "deploy": "./build.sh && wrangler deploy"
+  },
+  "dependencies": {
+    "@hono/mcp": "^0.3.2",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "hono": "^4.0.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

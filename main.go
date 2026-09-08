@@ -584,8 +584,18 @@ func fatal(err error) {
 	os.Exit(1)
 }
 
+// requireLogin은 세션이 없더라도 저장된 credentials가 있으면 조용히 로그인한다.
+// Workers처럼 세션 저장소가 빈 채로 시작하는 환경에서 첫 요청이 헛되이 실패하지 않게 한다.
+// (세션이 만료된 경우는 client.needsRelogin이 알아서 처리한다.)
 func requireLogin(c *eclass.Client) {
-	if !c.IsLoggedIn() {
+	if c.IsLoggedIn() {
+		return
+	}
+	creds, err := eclass.LoadCredentials()
+	if err != nil {
 		fatal(fmt.Errorf("not logged in"))
+	}
+	if err := c.Login(creds.ID, creds.Password); err != nil {
+		fatal(err)
 	}
 }

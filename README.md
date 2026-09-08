@@ -16,7 +16,12 @@ $ eclass saint open 학기별성적 전체성적
 
 ## 설치
 
-에이전트에 아래 한 줄을 복붙하면 알아서 깔아 준다.
+설치 없이 원격 MCP로 쓰려면 버튼 하나면 된다. CLI를 그대로 wasm으로 올리므로
+동작이 같다 (디스크가 필요한 `init`·`sync`·`download` 제외).
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/rycont/eclass-cli/tree/main/worker)
+
+터미널에서 쓰려면, 에이전트에 아래 한 줄을 복붙하면 알아서 깔아 준다.
 
 ```
 서강대학교 eclass CLI를 설치해줘: https://raw.githubusercontent.com/rycont/eclass-cli/main/docs/install.md
@@ -153,6 +158,8 @@ eclass saint open 개설교과목 교과목명=true 검색입력=자료구조 �
 - 추출이 이상하면 `ECLASS_RAW=1` / `SAINT_RAW=1`로 원본 HTML을 볼 수 있다
 
 ## 더 보기
+
+- [worker/README.md](worker/README.md) — Workers에 MCP로 배포하기
 
 - [내부 구조](docs/internals.md) — 두 학사 시스템을 어떻게 다루는지. 고칠 때 필요하다
 - [설치 가이드](docs/install.md)

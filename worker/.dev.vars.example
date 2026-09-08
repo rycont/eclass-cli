@@ -1,0 +1,5 @@
+# 배포 시 시크릿으로 등록된다. `wrangler secret put <이름>` 으로 넣어도 된다.
+ECLASS_ID="학번"
+ECLASS_PASSWORD="SAINT 비밀번호"
+# MCP 엔드포인트 접근 토큰. 아무 랜덤 문자열 (openssl rand -hex 16)
+MCP_TOKEN="..."

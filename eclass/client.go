@@ -2,17 +2,12 @@ package eclass
 
 import (
 	"bytes"
-	"crypto/tls"
-	"crypto/x509"
-	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
-	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -33,24 +28,14 @@ type Credentials struct {
 	Password string `json:"password"`
 }
 
-func sessionFile() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".eclass-session.json")
-}
-
-func credentialsFile() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".eclass-credentials.json")
-}
-
 func (c *Client) SaveCredentials(id, password string) error {
 	data, _ := json.Marshal(Credentials{ID: id, Password: password})
-	return os.WriteFile(credentialsFile(), data, 0600)
+	return storeWrite("credentials", data)
 }
 
 // LoadCredentials는 saint 패키지도 같은 계정을 쓰기 때문에 노출한다.
 func LoadCredentials() (*Credentials, error) {
-	data, err := os.ReadFile(credentialsFile())
+	data, err := storeRead("credentials")
 	if err != nil {
 		return nil, err
 	}
@@ -62,13 +47,6 @@ func LoadCredentials() (*Credentials, error) {
 }
 
 const userAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
-
-// 서강대 서버(eclass, saint, sis109)는 같은 와일드카드 인증서를 쓰면서
-// 중간 인증서를 안 내려준다. 브라우저는 AIA로 알아서 받아 오지만 Go는 안 받는다.
-// ponytail: 2036-03 만료. 그 전에 서버가 체인을 고치면 이 파일과 아래 pool을 지우면 된다.
-//
-//go:embed sectigo.pem
-var intermediatePEM []byte
 
 type uaTransport struct{ base http.RoundTripper }
 
@@ -83,17 +61,15 @@ func (t *uaTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 // Transport는 서강대 서버에 붙을 때 쓰는 RoundTripper.
-// 브라우저 User-Agent를 붙이고(없으면 서버가 차단), 빠진 중간 인증서를 채운다.
-// saint 패키지도 같은 서버를 상대하므로 이걸 그대로 쓴다.
+// 브라우저 User-Agent를 붙이고(없으면 서버가 차단), 그 아래는 플랫폼별로 다르다:
+// 일반 빌드는 빠진 중간 인증서를 채우고(transport.go), Workers 빌드는 raw 소켓을
+// 쓴다(transport_js.go). saint 패키지도 같은 서버를 상대하므로 이걸 그대로 쓴다.
 func Transport() (http.RoundTripper, error) {
-	pool, err := x509.SystemCertPool()
-	if err != nil || pool == nil {
-		pool = x509.NewCertPool()
+	base, err := baseTransport()
+	if err != nil {
+		return nil, err
 	}
-	if !pool.AppendCertsFromPEM(intermediatePEM) {
-		return nil, fmt.Errorf("중간 인증서 로드 실패")
-	}
-	return &uaTransport{base: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: pool}}}, nil
+	return &uaTransport{base: base}, nil
 }
 
 func NewClient() (*Client, error) {
@@ -107,7 +83,7 @@ func NewClient() (*Client, error) {
 	}
 	c := &Client{HTTP: &http.Client{Jar: jar, Transport: tr}}
 
-	data, err := os.ReadFile(sessionFile())
+	data, err := storeRead("session")
 	if err == nil {
 		var s savedSession
 		if json.Unmarshal(data, &s) == nil {
@@ -198,11 +174,11 @@ func (c *Client) saveSession() error {
 		}
 	}
 	data, _ := json.Marshal(s)
-	return os.WriteFile(sessionFile(), data, 0600)
+	return storeWrite("session", data)
 }
 
 func (c *Client) IsLoggedIn() bool {
-	data, err := os.ReadFile(sessionFile())
+	data, err := storeRead("session")
 	if err != nil {
 		return false
 	}
@@ -211,7 +187,7 @@ func (c *Client) IsLoggedIn() bool {
 }
 
 func (c *Client) Logout() {
-	os.Remove(sessionFile())
+	storeRemove("session")
 }
 
 // needsRelogin checks if a response indicates an expired session.
