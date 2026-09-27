@@ -69,7 +69,7 @@ KJKEY는 'eclass course ls'로 확인한다.`},
 
 	{"course <KJKEY> assignments", "과제 목록", ""},
 
-	{"course <KJKEY> assignment <SEQ>", "과제 상세 (본문 + 첨부)", ""},
+	{"course <KJKEY> assignment <SEQ>", "과제 상세 (본문 + 첨부 + 제출 상태)", ""},
 
 	{"course <KJKEY> syllabus", "강의계획서 내려받기",
 		"교수가 eclass에 올리지 않은 경우가 많다. SAINT 개설교과목 화면에도 있다."},

@@ -455,6 +455,8 @@ func syncAssignments(c *eclass.Client, root string, rc *courseRC, s *syncStat) [
 		fm += "d_day: " + yamlStr(a.DDay) + "\n"
 		fm += "score: " + yamlStr(detail.Score) + "\n"
 		fm += "submit_type: " + yamlStr(detail.SubmitType) + "\n"
+		fm += "submission_status: " + yamlStr(detail.SubmissionStatus) + "\n"
+		fm += "submitted_at: " + yamlStr(detail.SubmittedAt) + "\n"
 		fm += "week: " + yamlStr(a.Week) + "\n"
 		fm += "course: " + yamlStr(rc.Name) + "\n"
 		fm += "kjkey: " + yamlStr(rc.KJKEY) + "\n"

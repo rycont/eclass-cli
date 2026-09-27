@@ -213,6 +213,9 @@ eclass course <KJKEY> assignment <SEQ>
   "submit_type": "온라인",
   "deadline": "2026.03.25 (수) 23:59",
   "score": "100점",
+  "submitted": true,
+  "submission_status": "정상제출",
+  "submitted_at": "2026.03.24 (화) 21:03",
   "files": [
     {"file_name":"과제0_2048.pptx","file_size":"544.6KB","file_seq":"MKTA7CWQ5QLP2"}
   ]

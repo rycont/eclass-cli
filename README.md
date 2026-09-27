@@ -139,7 +139,7 @@ eclass saint open 개설교과목 교과목명=true 검색입력=자료구조 �
 | `eclass course <KJKEY> files` | 강의자료 목록 |
 | `eclass course <KJKEY> download [FILE_SEQ]` | 파일 다운로드 (강의자료·공지 첨부 공통) |
 | `eclass course <KJKEY> assignments` | 과제 목록 |
-| `eclass course <KJKEY> assignment <SEQ>` | 과제 상세 (본문 + 첨부) |
+| `eclass course <KJKEY> assignment <SEQ>` | 과제 상세 (본문 + 첨부 + 제출 상태) |
 | `eclass course <KJKEY> syllabus` | 강의계획서 내려받기 |
 | `eclass notifications` | 전체 강좌 알림 |
 | `eclass timetable` | 수강 강좌별 강의 시간 |

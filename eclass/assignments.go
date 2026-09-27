@@ -18,13 +18,18 @@ type Assignment struct {
 }
 
 type AssignmentDetail struct {
-	Title      string           `json:"title"`
-	Body       string           `json:"body"`
-	SubmitType string           `json:"submit_type,omitempty"`
-	OpenDate   string           `json:"open_date,omitempty"`
-	Deadline   string           `json:"deadline,omitempty"`
-	Score      string           `json:"score,omitempty"`
-	Files      []AssignmentFile `json:"files,omitempty"`
+	Title      string `json:"title"`
+	Body       string `json:"body"`
+	SubmitType string `json:"submit_type,omitempty"`
+	OpenDate   string `json:"open_date,omitempty"`
+	Deadline   string `json:"deadline,omitempty"`
+	Score      string `json:"score,omitempty"`
+	// 제출정보 박스 기준이다. 목록(과제함)의 Not Submitted는 오래된 값이
+	// 섞여 있어 믿지 않는다 — 상세 화면이 유일한 진짜다.
+	Submitted        bool             `json:"submitted"`
+	SubmissionStatus string           `json:"submission_status,omitempty"` // 정상제출 / 지각제출 / 미제출
+	SubmittedAt      string           `json:"submitted_at,omitempty"`
+	Files            []AssignmentFile `json:"files,omitempty"`
 }
 
 // 과제 첨부와 공지 첨부는 같은 efile_list.acl 응답이라 같은 파서를 쓴다.
@@ -149,6 +154,8 @@ func (c *Client) GetAssignmentDetail(kjkey, seq string) (*AssignmentDetail, erro
 		}
 	}
 
+	detail.SubmissionStatus, detail.SubmittedAt, detail.Submitted = parseSubmissionInfo(html)
+
 	// CONTENT_SEQ 추출하여 첨부파일 목록 가져오기
 	reContentSeq := regexp.MustCompile(`CONTENT_SEQ\s*:\s*"([^"]+)"`)
 	contentSeqs := reContentSeq.FindAllStringSubmatch(html, -1)
@@ -158,6 +165,22 @@ func (c *Client) GetAssignmentDetail(kjkey, seq string) (*AssignmentDetail, erro
 	}
 
 	return detail, nil
+}
+
+// 제출정보: 상세 화면 상단의 박스. 제출했으면 상태(정상제출 등)와 시각이 들어
+// 있고, 미제출이면 시각 칸이 없거나 박스 자체가 없다. 시각이 있어야 제출로 친다.
+func parseSubmissionInfo(html string) (status, submittedAt string, submitted bool) {
+	box := innerHTML(html, `<div class="submit_info_box">`)
+	if box == "" {
+		return "", "", false
+	}
+	if m := regexp.MustCompile(`(?s)<div[^>]*class="[^"]*txt[^"]*"[^>]*>(.*?)</div>`).FindStringSubmatch(box); m != nil {
+		status = cleanHTML(m[1])
+	}
+	if m := regexp.MustCompile(`(?s)<div[^>]*class="[^"]*date[^"]*"[^>]*>(.*?)</div>`).FindStringSubmatch(box); m != nil {
+		submittedAt = cleanHTML(m[1])
+	}
+	return status, submittedAt, submittedAt != ""
 }
 
 func (c *Client) getAssignmentFiles(kjkey, contentSeq string) ([]AssignmentFile, error) {
