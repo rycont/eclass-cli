@@ -1,6 +1,7 @@
 import { connect } from "cloudflare:sockets";
 import "./wasm_exec.js";
 import wasm from "./eclass.wasm";
+import { writeShim } from "./write-shim";
 
 type KV = {
   get(key: string): Promise<string | null>;
@@ -62,6 +63,8 @@ async function socketFetch(hostname: string, port: string, b64req: string): Prom
   }
 }
 
+let running = false;
+
 /**
  * CLI 한 번 실행. 출력은 커맨드가 찍은 JSON 한 줄이다.
  *
@@ -77,7 +80,9 @@ export async function runEclass(
   env: Env,
   args: string[],
 ): Promise<{ text: string; ok: boolean }> {
-  {
+  if(running) return {text:JSON.stringify({error:"worker busy; retry later"}),ok:false};
+  running=true;
+  try {
     const g = globalThis as Record<string, unknown>;
 
     // Go 쪽 transport_js.go / store_js.go 가 이 이름들로 호스트를 부른다.
@@ -97,17 +102,38 @@ export async function runEclass(
     console.log = console.warn = console.error = sink;
 
     let code = 0;
+    const exporting = args[0] === "course" && ["download", "syllabus"].includes(args[2]);
+    const output: string[] = [], errors: string[] = [];
+    const shim = writeShim(t => output.push(t), t => errors.push(t));
+    const previous = {fs:g.fs,process:g.process,path:g.path};
+    if(exporting) Object.assign(g, {fs:shim.fs,process:shim.process,path:shim.path});
     try {
-      const go = new (g.Go as new () => any)();
-      go.argv = ["eclass", ...args];
-      go.exit = (c: number) => {
-        code = c;
+      const run = async (argv:string[]) => {
+        const go = new (g.Go as new () => any)();
+        go.argv = ["eclass", ...argv];
+        go.exit = (c:number) => { code=c; };
+        await go.run(await WebAssembly.instantiate(wasm, go.importObject));
       };
-      await go.run(await WebAssembly.instantiate(wasm, go.importObject));
+      await run(args);
+      if(exporting) {
+        const raw = output.join("").trim();
+        // Any warning is an incomplete capture, never a successful export.
+        if(code!==0 || errors.length || shim.failed()) return {text:JSON.stringify({ok:false,stdout:raw,stderr:errors.join("")}),ok:false};
+        let result: any;
+        try {result=JSON.parse(raw);} catch {return {text:JSON.stringify({ok:false,error:"CLI returned invalid JSON",stdout:raw}),ok:false};}
+        if((Array.isArray(result) && result.some(x => x.ok === false)) || result?.ok === false) return {text:JSON.stringify({ok:false,result}),ok:false};
+        const files=[];
+        for(const [path,data] of shim.files) {
+          const digest=await crypto.subtle.digest("SHA-256",data);
+          files.push({path:path.slice("/work/".length),byte_size:data.length,sha256:Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join(""),base64:toB64(data)});
+        }
+        if(!files.length)return {text:JSON.stringify({ok:false,error:"CLI returned no files",result}),ok:false};
+        return {text:JSON.stringify({ok:true,result,files}),ok:true};
+      }
+      return {text:lines.join("\n").trim(),ok:code===0};
     } finally {
       Object.assign(console, orig);
+      if(exporting)Object.assign(g,previous);
     }
-
-    return { text: lines.join("\n").trim(), ok: code === 0 };
-  }
+  } finally { running=false; }
 }

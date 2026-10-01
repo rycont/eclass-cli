@@ -1,0 +1,18 @@
+import {writeShim,MAX_FILE} from './write-shim.mjs';
+import assert from 'node:assert/strict';
+const out=[],err=[]; const s=writeShim(t=>out.push(t),t=>err.push(t));
+const call=(name,...args)=>new Promise((resolve,reject)=>s.fs[name](...args,(e,v)=>e?reject(e):resolve(v)));
+await call('mkdir','/work/material',0o755);
+let fd=await call('open','material/test.pdf',64|512|1,0o600);
+const data=new TextEncoder().encode('%PDF-1.4\nhello');
+await call('write',fd,data,0,data.length,null);await call('close',fd);
+assert.equal((await call('stat','material/test.pdf')).size,data.length);
+fd=await call('open','material/test.pdf',0,0);const b=new Uint8Array(data.length);
+assert.equal(await call('read',fd,b,0,b.length,null),data.length);assert.deepEqual(b,data);
+await call('write',1,new TextEncoder().encode('output\n'),0,7,null);
+assert.deepEqual(out,['output\n']);assert.deepEqual(err,[]);
+await assert.rejects(call('open','../session.json',64,0),e=>e.code==='EACCES');
+await assert.rejects(call('open','/home/session.json',64,0),e=>e.code==='EACCES');
+await assert.rejects(call('write',fd,new Uint8Array(MAX_FILE+1),0,MAX_FILE+1,0),e=>e.code==='EFBIG');
+assert.equal(s.files.size,1);
+console.log('shim read/write/stdout/traversal/size tests passed');

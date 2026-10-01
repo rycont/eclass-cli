@@ -20,13 +20,15 @@ type Tool = {
 const KJKEY = { type: "string", description: "강좌 키. course_ls 로 확인한다." };
 const SEQ = { type: "string", description: "목록 응답의 seq 값" };
 
-// 파일시스템을 쓰는 커맨드(init/sync/download/syllabus)와 대화형 login은 뺐다.
-// Workers에는 디스크가 없고, 자격증명은 시크릿에서 온다.
+// download/syllabus는 호출별 쓰기 shim으로 파일을 결과에 반환한다.
+// 대화형 login은 노출하지 않고 자격증명은 기존 서버 시크릿에서 온다.
 const TOOLS: Tool[] = [
   { name: "course_ls", description: "수강 강좌 목록. 다른 도구에 넣을 KJKEY를 여기서 얻는다.", argv: () => ["course", "ls"] },
   { name: "course_notices", description: "강좌 공지사항 목록", properties: { kjkey: KJKEY }, required: ["kjkey"], argv: (a) => ["course", String(a.kjkey), "notices"] },
   { name: "course_notice", description: "공지사항 본문과 첨부 목록", properties: { kjkey: KJKEY, seq: SEQ }, required: ["kjkey", "seq"], argv: (a) => ["course", String(a.kjkey), "notice", String(a.seq)] },
   { name: "course_files", description: "강의자료 목록", properties: { kjkey: KJKEY }, required: ["kjkey"], argv: (a) => ["course", String(a.kjkey), "files"] },
+  { name: "course_download", description: "기존 CLI download 실행. 강좌 파일 번호로 받은 파일을 결과에 반환; 디스크 저장 없음.", properties: { kjkey: KJKEY, file_seq: SEQ }, required: ["kjkey", "file_seq"], argv: (a) => ["course", String(a.kjkey), "download", String(a.file_seq)] },
+  { name: "course_syllabus", description: "기존 CLI syllabus 실행. 강의계획서 파일을 결과에 반환; 디스크 저장 없음.", properties: { kjkey: KJKEY }, required: ["kjkey"], argv: (a) => ["course", String(a.kjkey), "syllabus"] },
   { name: "course_assignments", description: "과제 목록", properties: { kjkey: KJKEY }, required: ["kjkey"], argv: (a) => ["course", String(a.kjkey), "assignments"] },
   { name: "course_assignment", description: "과제 상세 (본문 + 첨부 + 제출 상태·제출 시각)", properties: { kjkey: KJKEY, seq: SEQ }, required: ["kjkey", "seq"], argv: (a) => ["course", String(a.kjkey), "assignment", String(a.seq)] },
   { name: "notifications", description: "전체 강좌 알림", argv: () => ["notifications"] },

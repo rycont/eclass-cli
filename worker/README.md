@@ -33,3 +33,20 @@ claude mcp add --transport http eclass https://eclass-mcp.<계정>.workers.dev/m
 
 - 요청마다 Go 런타임을 새로 띄운다. 호출당 2~4초.
 - 모듈 스코프에 Promise를 남겨 요청 간에 이어 붙이면 `Stream was cancelled`로 끊긴다.
+
+## Files returned by the write shim
+
+`course_download(kjkey, file_seq)` and `course_syllabus(kjkey)` run the existing
+CLI commands. Their invocation-local filesystem captures writes and returns
+`{ok, result, files:[{path, byte_size, sha256, base64}]}`. Callers should verify
+size/hash before saving the bytes inside their selected course folder.
+
+No arbitrary URL/path is accepted by these tools. Paths are confined to the
+virtual `/work` directory; session/credential storage remains on its separate
+KV hooks and is never part of the returned file map. File caps: 16 MiB each,
+64 MiB total. Nonzero exits, warnings, or overflow fail the export without
+returning partial files. Concurrent calls on one isolate fail as busy rather
+than mixing output or filesystem state. Native Go CLI code is unchanged.
+
+`sync` is not exposed yet: its native git operations need a separate worker
+strategy. The shim can capture file writes but must not claim a git commit.
