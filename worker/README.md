@@ -8,11 +8,11 @@ eclass-cli를 그대로 wasm으로 올린 원격 MCP 서버. 무료 플랜에서
 
 ```bash
 npm install
-npx wrangler kv namespace create SESSION   # id를 wrangler.jsonc 에 넣는다
-npx wrangler secret put ECLASS_ID          # 학번
-npx wrangler secret put ECLASS_PASSWORD    # SAINT 비밀번호
-npx wrangler secret put MCP_TOKEN          # openssl rand -hex 16
-npm run deploy                             # wasm 빌드까지 같이 한다
+cf kv namespace create SESSION          # id를 cloudflare.config.ts 에 넣는다
+cf secret put ECLASS_ID                   # 학번
+cf secret put ECLASS_PASSWORD             # SAINT 비밀번호
+cf secret put MCP_TOKEN                   # openssl rand -hex 16
+npm run deploy                             # cf build + deploy
 ```
 
 ```bash

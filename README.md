@@ -154,7 +154,7 @@ eclass saint open 개설교과목 교과목명=true 검색입력=자료구조 �
 - **읽기 전용이다.** 과제 제출, 수강신청, 공지 작성은 하지 않는다
 - 세션이 만료되면 저장된 자격증명으로 알아서 다시 로그인한다
   (`~/.eclass-credentials.json`, 권한 0600)
-- 조교로 담당하는 강좌는 `course ls`에 나오지 않는다. 수강 강좌만 준다
+- 조교로 담당하는 강좌도 `course ls`에 나온다. role 값은 assistant일 수 있다.
 - 추출이 이상하면 `ECLASS_RAW=1` / `SAINT_RAW=1`로 원본 HTML을 볼 수 있다
 
 ## 더 보기

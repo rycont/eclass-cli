@@ -253,6 +253,7 @@ func cmdCourseList(c *eclass.Client) {
 		Name  string `json:"name"`
 		Year  string `json:"year"`
 		Term  string `json:"term"`
+		Role  string `json:"role,omitempty"`
 	}
 
 	var result []courseEntry
@@ -267,14 +268,20 @@ func cmdCourseList(c *eclass.Client) {
 				Name:  course.Name,
 				Year:  yt[0],
 				Term:  yt[1],
+				Role:  course.Role,
 			})
+		}
+	}
+	if assistants, err := c.GetAssistantCourses(); err == nil {
+		for _, a := range assistants {
+			result = append(result, courseEntry{KJKEY: a.KJKEY, Name: a.Name, Year: a.Year, Term: a.Term, Role: a.Role})
 		}
 	}
 	out(result)
 }
 
 func cmdNotices(c *eclass.Client, kjkey string) {
-	if err := c.EnterCourse(kjkey); err != nil {
+	if err := c.EnterAnyCourse(kjkey); err != nil {
 		fatal(err)
 	}
 	notices, err := c.GetNotices(1)
@@ -302,7 +309,7 @@ func cmdNotices(c *eclass.Client, kjkey string) {
 }
 
 func cmdNoticeView(c *eclass.Client, kjkey, seq string) {
-	if err := c.EnterCourse(kjkey); err != nil {
+	if err := c.EnterAnyCourse(kjkey); err != nil {
 		fatal(err)
 	}
 	n, err := c.GetNoticeContent(seq)
@@ -319,7 +326,7 @@ func cmdNoticeView(c *eclass.Client, kjkey, seq string) {
 }
 
 func cmdFiles(c *eclass.Client, kjkey string) {
-	if err := c.EnterCourse(kjkey); err != nil {
+	if err := c.EnterAnyCourse(kjkey); err != nil {
 		fatal(err)
 	}
 	items, err := c.GetFiles()
@@ -354,7 +361,7 @@ func cmdFiles(c *eclass.Client, kjkey string) {
 // FILE_SEQ 하나로 강의자료든 공지 첨부든 받는다. 둘은 목록이 다르지만
 // 사용자에게는 똑같이 생긴 값이라, 어디 있는지 알아내는 건 CLI 몫이다.
 func cmdDownload(c *eclass.Client, kjkey, fileSeq string) {
-	if err := c.EnterCourse(kjkey); err != nil {
+	if err := c.EnterAnyCourse(kjkey); err != nil {
 		fatal(err)
 	}
 
@@ -450,7 +457,7 @@ func downloadURL(c *eclass.Client, url, fileName string) error {
 }
 
 func cmdAssignments(c *eclass.Client, kjkey string) {
-	if err := c.EnterCourse(kjkey); err != nil {
+	if err := c.EnterAnyCourse(kjkey); err != nil {
 		fatal(err)
 	}
 	items, err := c.GetAssignments()
@@ -461,8 +468,21 @@ func cmdAssignments(c *eclass.Client, kjkey string) {
 }
 
 func cmdAssignmentView(c *eclass.Client, kjkey, seq string) {
-	if err := c.EnterCourse(kjkey); err != nil {
+	if err := c.EnterAnyCourse(kjkey); err != nil {
 		fatal(err)
+	}
+	if c.IsAssistantRoom() {
+		items, err := c.GetAssignments()
+		if err != nil {
+			fatal(err)
+		}
+		for _, item := range items {
+			if item.Seq == seq {
+				out(map[string]any{"seq": item.Seq, "title": item.Title, "week": item.Week, "deadline": item.Deadline, "attachment_count": item.Files, "body": "", "body_available": false, "submission_status": "상세 본문/제출상태 화면은 TA 권한에서 확인 불가"})
+				return
+			}
+		}
+		fatal(fmt.Errorf("과제 seq %s 없음", seq))
 	}
 	detail, err := c.GetAssignmentDetail(kjkey, seq)
 	if err != nil {
@@ -515,7 +535,7 @@ func cmdTimetable(c *eclass.Client) {
 }
 
 func cmdSyllabus(c *eclass.Client, kjkey string) {
-	if err := c.EnterCourse(kjkey); err != nil {
+	if err := c.EnterAnyCourse(kjkey); err != nil {
 		fatal(err)
 	}
 	info, err := c.GetSyllabus(kjkey)

@@ -17,7 +17,11 @@ type FileItem struct {
 }
 
 func (c *Client) GetFiles() ([]FileItem, error) {
-	resp, err := c.Post("/ilos/cls/st/files/files_list.acl", url.Values{
+	path := "/ilos/cls/st/files/files_list.acl"
+	if c.roomRole == "assistant" {
+		path = "/ilos/cls/pf/files/files_list.acl"
+	}
+	resp, err := c.Post(path, url.Values{
 		"SCH_VALUE": {""},
 	})
 	if err != nil {

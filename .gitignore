@@ -1,2 +1,4 @@
 eclass-cli
 *.exe
+
+worker/.cloudflare/

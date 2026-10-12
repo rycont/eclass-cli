@@ -3,9 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "./build.sh",
-    "dev": "./build.sh && wrangler dev",
-    "deploy": "./build.sh && wrangler deploy"
+    "build": "./build.sh && cf build",
+    "dev": "./build.sh && cf dev",
+    "deploy": "npm run build && cf deploy --prebuilt"
   },
   "dependencies": {
     "@hono/mcp": "^0.3.2",
@@ -13,6 +13,7 @@
     "hono": "^4.0.0"
   },
   "devDependencies": {
-    "wrangler": "^4.0.0"
+    "cf": "^1.0.0-beta.14",
+    "wrangler": "^4.149.0"
   }
 }

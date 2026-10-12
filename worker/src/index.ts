@@ -23,7 +23,8 @@ const SEQ = { type: "string", description: "목록 응답의 seq 값" };
 // download/syllabus는 호출별 쓰기 shim으로 파일을 결과에 반환한다.
 // 대화형 login은 노출하지 않고 자격증명은 기존 서버 시크릿에서 온다.
 const TOOLS: Tool[] = [
-  { name: "course_ls", description: "수강 강좌 목록. 다른 도구에 넣을 KJKEY를 여기서 얻는다.", argv: () => ["course", "ls"] },
+
+  { name: "course_ls", description: "수강 및 조교 담당 강좌 목록. 다른 도구에 넣을 KJKEY를 여기서 얻는다.", argv: () => ["course", "ls"] },
   { name: "course_notices", description: "강좌 공지사항 목록", properties: { kjkey: KJKEY }, required: ["kjkey"], argv: (a) => ["course", String(a.kjkey), "notices"] },
   { name: "course_notice", description: "공지사항 본문과 첨부 목록", properties: { kjkey: KJKEY, seq: SEQ }, required: ["kjkey", "seq"], argv: (a) => ["course", String(a.kjkey), "notice", String(a.seq)] },
   { name: "course_files", description: "강의자료 목록", properties: { kjkey: KJKEY }, required: ["kjkey"], argv: (a) => ["course", String(a.kjkey), "files"] },

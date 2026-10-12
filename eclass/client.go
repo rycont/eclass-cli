@@ -14,8 +14,11 @@ import (
 const BaseURL = "https://eclass.sogang.ac.kr"
 
 type Client struct {
-	HTTP *http.Client
+	HTTP     *http.Client
+	roomRole string
 }
+
+func (c *Client) IsAssistantRoom() bool { return c.roomRole == "assistant" }
 
 type savedSession struct {
 	JSESSIONID string `json:"jsessionid"`

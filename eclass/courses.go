@@ -9,10 +9,11 @@ import (
 )
 
 type Course struct {
-	KJKEY string
-	Name  string
-	Year  string
-	Term  string
+	KJKEY string `json:"kjkey"`
+	Name  string `json:"name"`
+	Year  string `json:"year"`
+	Term  string `json:"term"`
+	Role  string `json:"role,omitempty"`
 }
 
 var (
@@ -77,6 +78,7 @@ func (c *Client) GetCourses(year, term string) ([]Course, error) {
 }
 
 func (c *Client) EnterCourse(kjkey string) error {
+	c.roomRole = "student"
 	resp, err := c.Post("/ilos/cls/st/co/eclass_room2.acl", url.Values{
 		"KJKEY":     {kjkey},
 		"returnURI": {"/ilos/cls/st/submain/submain_form.acl"},

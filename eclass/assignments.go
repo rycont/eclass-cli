@@ -36,7 +36,11 @@ type AssignmentDetail struct {
 type AssignmentFile = AttachedFile
 
 func (c *Client) GetAssignments() ([]Assignment, error) {
-	resp, err := c.Post("/ilos/cls/st/activity/activity_list.acl", url.Values{
+	path := "/ilos/cls/st/activity/activity_list.acl"
+	if c.roomRole == "assistant" {
+		path = "/ilos/cls/pf/activity/activity_list.acl"
+	}
+	resp, err := c.Post(path, url.Values{
 		"type":    {"report"},
 		"start":   {"1"},
 		"display": {"50"},
@@ -112,7 +116,11 @@ func parseAssignments(html string) []Assignment {
 
 func (c *Client) GetAssignmentDetail(kjkey, seq string) (*AssignmentDetail, error) {
 	// EnterCourse는 이미 호출된 상태
-	resp, err := c.Get("/ilos/cls/st/report/report_view_form.acl?RT_SEQ=" + seq)
+	path := "/ilos/cls/st/report/report_view_form.acl?RT_SEQ=" + seq
+	if c.roomRole == "assistant" {
+		path = "/ilos/cls/pf/report/report_mark_form.acl?RT_SEQ=" + seq
+	}
+	resp, err := c.Get(path)
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +192,11 @@ func parseSubmissionInfo(html string) (status, submittedAt string, submitted boo
 }
 
 func (c *Client) getAssignmentFiles(kjkey, contentSeq string) ([]AssignmentFile, error) {
-	resp, err := c.Post("/ilos/co/efile_list.acl", url.Values{
+	path := "/ilos/co/efile_list.acl"
+	if c.roomRole == "assistant" {
+		path = "/ilos/cls/pf/co/efile_list.acl"
+	}
+	resp, err := c.Post(path, url.Values{
 		"ky":          {kjkey},
 		"pf_st_flag":  {"2"},
 		"CONTENT_SEQ": {contentSeq},

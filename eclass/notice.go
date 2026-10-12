@@ -22,9 +22,15 @@ var (
 )
 
 func (c *Client) GetNotices(start int) ([]Notice, error) {
-	resp, err := c.Post("/ilos/cls/st/notice/notice_list.acl", url.Values{
+	path := "/ilos/cls/st/notice/notice_list.acl"
+	display := "20"
+	if c.roomRole == "assistant" {
+		path = "/ilos/cls/pf/notice/notice_list.acl"
+		display = "8"
+	}
+	resp, err := c.Post(path, url.Values{
 		"start":     {fmt.Sprintf("%d", start)},
-		"display":   {"20"},
+		"display":   {display},
 		"SCH_VALUE": {""},
 		"ODR":       {""},
 	})
@@ -102,7 +108,11 @@ type NoticeContent struct {
 }
 
 func (c *Client) GetNoticeContent(seq string) (*NoticeContent, error) {
-	resp, err := c.Post("/ilos/cls/st/notice/notice_view_pop.acl", url.Values{
+	path := "/ilos/cls/st/notice/notice_view_pop.acl"
+	if c.roomRole == "assistant" {
+		path = "/ilos/cls/pf/notice/notice_view_pop.acl"
+	}
+	resp, err := c.Post(path, url.Values{
 		"ARTL_NUM": {seq},
 	})
 	if err != nil {
@@ -152,7 +162,11 @@ func (c *Client) noticeFiles(page string) ([]AttachedFile, error) {
 	if m == nil {
 		return []AttachedFile{}, nil
 	}
-	resp, err := c.Post("/ilos/cls/st/co/efile_list.acl", url.Values{
+	path := "/ilos/cls/st/co/efile_list.acl"
+	if c.roomRole == "assistant" {
+		path = "/ilos/cls/pf/co/efile_list.acl"
+	}
+	resp, err := c.Post(path, url.Values{
 		"ud": {m[1]}, "ky": {m[2]}, "pf_st_flag": {m[3]}, "CONTENT_SEQ": {m[4]},
 	})
 	if err != nil {

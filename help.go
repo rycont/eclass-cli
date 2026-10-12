@@ -50,7 +50,7 @@ KJKEY는 'eclass course ls'로 확인한다.`},
 - 자동 커밋한다. 실행 전 작업 공간이 더러우면 'wip:' 커밋으로 먼저 저장하고,
   sync 결과는 별도 커밋. 무엇이 바뀌었는지는 git log / git diff로 본다`},
 
-	{"course ls", "수강 강좌 목록 (KJKEY 확인용)", ""},
+	{"course ls", "수강·조교 담당 강좌 목록 (KJKEY 확인용)", ""},
 
 	{"course <KJKEY> notices", "공지사항 목록", ""},
 
