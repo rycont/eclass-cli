@@ -3,6 +3,7 @@
 # src/tools.json도 생성물 — 도구 정의의 원본은 Go 쪽(mcp.go)이고, `eclass mcp spec` 출력을 받는다.
 set -euo pipefail
 cd "$(dirname "$0")"
+npx tsc --noEmit -p tsconfig.json
 GOOS=js GOARCH=wasm go build -o src/eclass.wasm ..
 cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" src/wasm_exec.js
 specbin="$(mktemp)"

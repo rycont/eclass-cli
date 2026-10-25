@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"os"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -143,9 +142,6 @@ func (c *Client) Login(username, password string) error {
 		}
 	}
 	body := buf.String()
-	if os.Getenv("ECLASS_LOGIN_RAW") != "" {
-		fmt.Fprintf(os.Stderr, "LOGIN RESPONSE: %s\n", body)
-	}
 
 	if strings.Contains(body, "top.location.href") {
 		// 성공: 쿠키 저장

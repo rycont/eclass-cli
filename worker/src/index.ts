@@ -78,13 +78,13 @@ app.use("/mcp", (c, next) =>
     token: [c.env.MCP_TOKEN, c.env.MCP_TOKEN_DANIEL, c.env.MCP_TOKEN_RAKAZO].filter(
       (t): t is string => Boolean(t),
     ),
-  })(c, next),
+  })(c as never, next),
 );
 
 app.all("/mcp", async (c) => {
   const transport = new StreamableHTTPTransport();
-  await server(c).connect(transport);
-  return transport.handleRequest(c);
+  await server(c.env).connect(transport);
+  return transport.handleRequest(c as never);
 });
 
 app.get("/", (c) => c.text("eclass MCP. POST /mcp (Authorization: Bearer <token>)\n"));

@@ -31,7 +31,7 @@ function toB64(u8: Uint8Array): string {
 // Workers의 fetch()는 서강대의 불완전한 인증서 체인을 거부한다(526). raw 소켓은
 // 그 검증 경로를 안 타므로 여기로 우회한다. 자세한 사정은 eclass/transport_js.go 참고.
 async function socketFetch(hostname: string, port: string, b64req: string): Promise<string> {
-  const sock = connect({ hostname, port: Number(port) }, { secureTransport: "on" });
+  const sock = connect({ hostname, port: Number(port) }, { secureTransport: "on", allowHalfOpen: false });
   try {
     const w = sock.writable.getWriter();
     await w.write(toBytes(b64req));
