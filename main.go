@@ -67,6 +67,8 @@ func main() {
 			kjkey = os.Args[2]
 		}
 		cmdTodo(c, kjkey)
+	case "mcp":
+		cmdMCP(os.Args[2:])
 	default:
 		fmt.Fprintf(os.Stderr, "그런 커맨드가 없습니다: %s\n\n", os.Args[1])
 		printUsage(os.Stderr)

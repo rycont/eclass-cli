@@ -80,6 +80,21 @@ KJKEY는 'eclass course ls'로 확인한다.`},
 
 	{"todo [KJKEY]", "미완료 할 일", ""},
 
+	{"mcp [stdio | http | spec]", "MCP 서버로 실행 (stdio / Streamable HTTP)",
+		`로컬 클라이언트에 붙일 때는 stdio (기본):
+
+  eclass mcp
+
+HTTP로 서빙할 때는:
+
+  eclass mcp http --addr 127.0.0.1:8080 --token <랜덤>
+
+토큰은 ECLASS_MCP_TOKEN 환경변수로도 줄 수 있다. 루프백이 아닌 주소에
+열 때는 토큰이 반드시 필요하다 — 이 서버는 학사 계정 읽기 권한 그 자체다.
+
+도구 정의의 원본은 mcp.go다. worker 빌드도 'eclass mcp spec' 출력을
+받아 같은 정의를 쓴다.`},
+
 	{"saint menu", "SAINT 화면 목록 (72개)",
 		"group(최상위 분류) / index(트리 좌표) / title(화면 이름) / id(내부 해시)를 준다.\n화면을 열 때는 title을 쓴다."},
 

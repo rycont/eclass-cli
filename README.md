@@ -125,6 +125,30 @@ eclass saint open 개설교과목 교과목명=true 검색입력=자료구조 �
 
 **SAINT는 읽기 전용이다.** 수강신청이나 제출은 하지 않는다.
 
+## MCP로 붙이기
+
+CLI가 MCP 서버를 직접 서빙한다. 도구는 위 커맨드들을 그대로 감싼다
+(읽기 전용, 디스크가 필요한 `init`·`sync` 제외).
+
+로컬 클라이언트에는 stdio로 붙는다:
+
+```bash
+eclass mcp          # = eclass mcp stdio
+```
+
+Streamable HTTP로 서빙할 수도 있다:
+
+```bash
+eclass mcp http --addr 127.0.0.1:8080 --token <랜덤 토큰>
+```
+
+토큰은 `ECLASS_MCP_TOKEN` 환경변수로도 줄 수 있다. 루프백이 아닌 주소에
+열 때는 토큰이 필수다 — 이 서버는 학사 계정 읽기 권한 그 자체다.
+엔드포인트는 `POST /mcp` 하나다.
+
+Workers에 올리는 원격 MCP(worker/)도 같은 도구 정의를 쓴다 — build.sh가
+`eclass mcp spec` 출력을 받아 서빙하므로 CLI와 도구 표가 어긋나지 않는다.
+
 ## 커맨드
 
 | Command | Description |
@@ -144,6 +168,7 @@ eclass saint open 개설교과목 교과목명=true 검색입력=자료구조 �
 | `eclass notifications` | 전체 강좌 알림 |
 | `eclass timetable` | 수강 강좌별 강의 시간 |
 | `eclass todo [KJKEY]` | 미완료 할 일 |
+| `eclass mcp [stdio \| http \| spec]` | MCP 서버로 실행 (stdio / Streamable HTTP) |
 | `eclass saint menu` | SAINT 화면 목록 (72개) |
 | `eclass saint open <화면이름> [입력칸=값 \| 동작이름 ...]` | SAINT 화면 열기 |
 

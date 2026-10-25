@@ -2,3 +2,6 @@ eclass-cli
 *.exe
 
 worker/.cloudflare/
+worker/src/eclass.wasm
+worker/src/wasm_exec.js
+worker/src/tools.json

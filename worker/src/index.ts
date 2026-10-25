@@ -7,46 +7,43 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { runEclass, type Env } from "./eclass";
+import toolsSpec from "./tools.json";
 
+// 도구 정의의 원본은 Go 쪽(mcp.go)이다. build.sh가 `eclass mcp spec` 출력을
+// src/tools.json으로 만들어 넣는다 — CLI(`eclass mcp`)와 Worker가 같은
+// 도구 표를 쓰기 위해서다. tools.json은 생성물이라 커밋하지 않는다.
 type Args = Record<string, string | string[] | undefined>;
-type Tool = {
+type ToolSpec = {
   name: string;
   description: string;
-  properties?: Record<string, unknown>;
-  required?: string[];
-  argv: (a: Args) => string[];
+  inputSchema: { type: string; properties: Record<string, unknown>; required: string[] };
+  argv: string[];
 };
 
-const KJKEY = { type: "string", description: "강좌 키. course_ls 로 확인한다." };
-const SEQ = { type: "string", description: "목록 응답의 seq 값" };
+// Go mcp.go의 renderArgv와 같은 규칙: "$name" 치환, "$name?" 선택, "$...name" 펼침.
+function renderArgv(template: string[], a: Args): string[] {
+  const out: string[] = [];
+  for (const el of template) {
+    if (el.startsWith("$...")) {
+      const v = a[el.slice(4)];
+      if (Array.isArray(v)) out.push(...v.map(String));
+    } else if (el.startsWith("$")) {
+      const optional = el.endsWith("?");
+      const name = el.slice(1, optional ? -1 : undefined);
+      const v = a[name];
+      if (v === undefined || v === "") {
+        if (optional) continue;
+        throw new Error(`인자 ${name}가 필요합니다`);
+      }
+      out.push(String(v));
+    } else {
+      out.push(el);
+    }
+  }
+  return out;
+}
 
-// download/syllabus는 호출별 쓰기 shim으로 파일을 결과에 반환한다.
-// 대화형 login은 노출하지 않고 자격증명은 기존 서버 시크릿에서 온다.
-const TOOLS: Tool[] = [
-
-  { name: "course_ls", description: "수강 및 조교 담당 강좌 목록. 다른 도구에 넣을 KJKEY를 여기서 얻는다.", argv: () => ["course", "ls"] },
-  { name: "course_notices", description: "강좌 공지사항 목록", properties: { kjkey: KJKEY }, required: ["kjkey"], argv: (a) => ["course", String(a.kjkey), "notices"] },
-  { name: "course_notice", description: "공지사항 본문과 첨부 목록", properties: { kjkey: KJKEY, seq: SEQ }, required: ["kjkey", "seq"], argv: (a) => ["course", String(a.kjkey), "notice", String(a.seq)] },
-  { name: "course_files", description: "강의자료 목록", properties: { kjkey: KJKEY }, required: ["kjkey"], argv: (a) => ["course", String(a.kjkey), "files"] },
-  { name: "course_download", description: "기존 CLI download 실행. 강좌 파일 번호로 받은 파일을 결과에 반환; 디스크 저장 없음.", properties: { kjkey: KJKEY, file_seq: SEQ }, required: ["kjkey", "file_seq"], argv: (a) => ["course", String(a.kjkey), "download", String(a.file_seq)] },
-  { name: "course_syllabus", description: "기존 CLI syllabus 실행. 강의계획서 파일을 결과에 반환; 디스크 저장 없음.", properties: { kjkey: KJKEY }, required: ["kjkey"], argv: (a) => ["course", String(a.kjkey), "syllabus"] },
-  { name: "course_assignments", description: "과제 목록", properties: { kjkey: KJKEY }, required: ["kjkey"], argv: (a) => ["course", String(a.kjkey), "assignments"] },
-  { name: "course_assignment", description: "과제 상세 (본문 + 첨부 + 제출 상태·제출 시각)", properties: { kjkey: KJKEY, seq: SEQ }, required: ["kjkey", "seq"], argv: (a) => ["course", String(a.kjkey), "assignment", String(a.seq)] },
-  { name: "notifications", description: "전체 강좌 알림", argv: () => ["notifications"] },
-  { name: "timetable", description: "수강 강좌별 강의 시간", argv: () => ["timetable"] },
-  { name: "todo", description: "미완료 할 일. kjkey 를 주면 그 강좌만.", properties: { kjkey: { ...KJKEY, description: KJKEY.description + " 생략하면 전체." } }, argv: (a) => (a.kjkey ? ["todo", String(a.kjkey)] : ["todo"]) },
-  { name: "saint_menu", description: "SAINT 화면 목록. 성적·장학금·학사 조회의 시작점.", argv: () => ["saint", "menu"] },
-  {
-    name: "saint_open",
-    description: "SAINT 화면 열기. 화면·동작 이름은 부분 일치로 찾는다.",
-    properties: {
-      screen: { type: "string", description: '화면 이름. 예: "학기별성적", "장학금 수혜내역"' },
-      args: { type: "array", items: { type: "string" }, description: '동작 이름 또는 입력칸=값. 예: ["전체성적"], ["소속구분=대학", "검색"]' },
-    },
-    required: ["screen"],
-    argv: (a) => ["saint", "open", String(a.screen), ...((a.args as string[]) ?? [])],
-  },
-];
+const TOOLS = (toolsSpec as { tools: ToolSpec[] }).tools;
 
 function server(env: Env) {
   const s = new Server(
@@ -58,14 +55,15 @@ function server(env: Env) {
     tools: TOOLS.map((t) => ({
       name: t.name,
       description: t.description,
-      inputSchema: { type: "object", properties: t.properties ?? {}, required: t.required ?? [] },
+      inputSchema: t.inputSchema,
     })),
   }));
 
   s.setRequestHandler(CallToolRequestSchema, async (req) => {
     const tool = TOOLS.find((t) => t.name === req.params.name);
     if (!tool) throw new Error(`없는 도구: ${req.params.name}`);
-    const { text, ok } = await runEclass(env, tool.argv(req.params.arguments ?? {}));
+    const argv = renderArgv(tool.argv, (req.params.arguments ?? {}) as Args);
+    const { text, ok } = await runEclass(env, argv);
     return { content: [{ type: "text", text: text || "(출력 없음)" }], isError: !ok };
   });
 
@@ -74,14 +72,21 @@ function server(env: Env) {
 
 const app = new Hono<{ Bindings: Env }>();
 
-app.use("/mcp", (c, next) => bearerAuth({ token: c.env.MCP_TOKEN })(c, next));
+// 클라이언트별로 토큰을 나눠 담는다: 기본 MCP_TOKEN + 용도별 MCP_TOKEN_* 시크릿.
+app.use("/mcp", (c, next) =>
+  bearerAuth({
+    token: [c.env.MCP_TOKEN, c.env.MCP_TOKEN_DANIEL, c.env.MCP_TOKEN_RAKAZO].filter(
+      (t): t is string => Boolean(t),
+    ),
+  })(c, next),
+);
 
 app.all("/mcp", async (c) => {
   const transport = new StreamableHTTPTransport();
-  await server(c.env).connect(transport);
+  await server(c).connect(transport);
   return transport.handleRequest(c);
 });
 
-app.get("/", (c) => c.text("eclass MCP. POST /mcp (Authorization: Bearer <MCP_TOKEN>)\n"));
+app.get("/", (c) => c.text("eclass MCP. POST /mcp (Authorization: Bearer <token>)\n"));
 
 export default app;

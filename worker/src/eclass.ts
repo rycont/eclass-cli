@@ -14,6 +14,8 @@ export type Env = {
   ECLASS_ID: string;
   ECLASS_PASSWORD: string;
   MCP_TOKEN: string;
+  MCP_TOKEN_DANIEL?: string;
+  MCP_TOKEN_RAKAZO?: string;
 };
 
 const toBytes = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
