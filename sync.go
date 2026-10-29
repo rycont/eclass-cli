@@ -299,7 +299,7 @@ func cmdSync(c *eclass.Client) {
 		fmt.Fprintf(os.Stderr, "warning: %v\n", err)
 	}
 
-	if err := c.EnterCourse(rc.KJKEY); err != nil {
+	if err := c.EnterAnyCourse(rc.KJKEY); err != nil {
 		fatal(err)
 	}
 	s := newSyncStat(root)
